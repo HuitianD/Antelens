@@ -29,7 +29,7 @@ export async function startLiveWorker() {
     const configuration: RunConfiguration = { modelId: process.env.CLAUDE_MODEL_ID ?? 'not_configured', promptVersion: INVESTIGATION_PROMPT_VERSION, policyVersion: INVESTIGATION_POLICY_VERSION, toolVersion: INVESTIGATION_TOOL_VERSION, execution: 'live' };
     const controller = new AbortController();
     let stopped = false;
-    const sourcesFor = async (ownerId: string, caseId: string) => { const result = await repo.pool.query('SELECT s.id,s.dto,s.content,s.links FROM source_events s JOIN case_sources cs ON cs.source_event_id=s.id AND cs.owner_id=s.owner_id WHERE cs.owner_id=$1 AND cs.case_id=$2 ORDER BY s.created_at,s.id', [ownerId, caseId]); return result.rows.map(row => ({ id: row.id as string, title: SourceEventSchema.parse(row.dto).title, content: row.content as string, links: row.links as string[] })); };
+    const sourcesFor = async (ownerId: string, caseId: string) => { const result = await repo.pool.query('SELECT s.id,s.dto,s.content,s.links FROM source_events s JOIN case_sources cs ON cs.source_event_id=s.id AND cs.owner_id=s.owner_id WHERE cs.owner_id=$1 AND cs.case_id=$2 ORDER BY s.created_at,s.id', [ownerId, caseId]); return result.rows.map(row => ({ id: row.id as string, title: SourceEventSchema.parse(row.dto).title,kind:SourceEventSchema.parse(row.dto).kind, content: row.content as string, links: row.links as string[] })); };
     const saveCapture = async (ownerId: string, runId: string, caseId: string, generation: number, capture: EvidenceCapture): Promise<Evidence> => {
         const id = randomUUID(), artifactId = capture.artifactBytes ? randomUUID() : null;
         let storageKey: string | null = null;
@@ -49,7 +49,7 @@ export async function startLiveWorker() {
             uploaded = true;
             await repo.transaction(ownerId, async (client) => { await client.query('INSERT INTO artifacts(id,owner_id,case_id,storage_key,mime_type,byte_length,content_hash,retain_until) VALUES($1,$2,$3,$4,$5,$6,$7,$8)', [artifactId, ownerId, caseId, storageKey, capture.artifactMime ?? 'image/png', capture.artifactBytes!.length, artifactHash, new Date(Date.now() + 30 * 86400000)]); });
         }
-        const evidence = EvidenceSchema.parse({ id, caseId, runId, sourceEventId: capture.sourceEventId, stepId: capture.stepId, kind: capture.kind, observedAt: new Date().toISOString(), sourceLabel: capture.sourceLabel, displayUrl: capture.displayUrl, excerpt: capture.excerpt, artifactId, contentHash: capture.contentHash, provenance: capture.provenance });
+        const evidence = EvidenceSchema.parse({ id, caseId, runId, sourceEventId: capture.sourceEventId, stepId: capture.stepId, kind: capture.kind, observedAt: new Date().toISOString(), sourceLabel: capture.sourceLabel, displayUrl: capture.displayUrl, excerpt: capture.excerpt, artifactId, contentHash: capture.contentHash, provenance: capture.provenance,...(capture.inspection?{inspection:capture.inspection}:{}) });
         return await repo.saveEvidence(ownerId, runId, generation, evidence);
         } catch (error) {
             if (uploaded && storageKey && artifactId) {
@@ -105,8 +105,9 @@ export async function startLiveWorker() {
                 heartbeat = setInterval(() => { void repo.renewLease(data.ownerId, data.runId!, lease.generation, 120000).catch(() => runAbort.abort()); }, 30000);
                 const sources = await sourcesFor(data.ownerId, lease.run.caseId);
                 const context = await investigationContext(repo, data.ownerId, lease.run, generation, sources);
+                const capturedPage=lease.run.pageCaptureId?await repo.pageCapture(data.ownerId,lease.run.pageCaptureId):undefined;
                 const agent = createLiveAgent(runtimeConfig());
-                const result = await agent.investigate({ ownerId: data.ownerId, caseId: lease.run.caseId, runId: data.runId, sourceRevision: lease.run.sourceRevision, dataOrigin: lease.run.provenance.dataOrigin, sources, ...context, saveEvidence: capture => saveCapture(data.ownerId, data.runId!, lease.run.caseId, lease.generation, capture), onStep: async (step) => { await repo.addStep(data.ownerId, data.runId!, lease.generation, step); }, signal: runAbort.signal });
+                const result = await agent.investigate({ ownerId: data.ownerId, caseId: lease.run.caseId, runId: data.runId, sourceRevision: lease.run.sourceRevision, dataOrigin: lease.run.provenance.dataOrigin, sources, ...context,capturedPage,onSandboxCreated:async sandboxId=>{await repo.pool.query('UPDATE investigation_runs SET sandbox_id=$3 WHERE owner_id=$1 AND id=$2 AND lease_generation=$4',[data.ownerId,data.runId,sandboxId,lease.generation]);}, saveEvidence: capture => saveCapture(data.ownerId, data.runId!, lease.run.caseId, lease.generation, capture), onStep: async (step) => { await repo.addStep(data.ownerId, data.runId!, lease.generation, step); }, signal: runAbort.signal });
                 await repo.pool.query('UPDATE investigation_runs SET provider_session_id=$3 WHERE id=$1 AND owner_id=$2 AND lease_generation=$4', [data.runId, data.ownerId, result.sessionId, generation]);
                 await repo.publishAssessment(data.ownerId, data.runId, generation, result.proposal, 'live', result.limitations.length ? 'limited' : 'complete');
             }
@@ -146,7 +147,7 @@ export async function startLiveWorker() {
     for (const signal of ['SIGINT', 'SIGTERM'] as const)
         process.on(signal, () => { stopped = true; controller.abort(); });
     let lastSync = 0, lastRecovery = 0, syncTask: Promise<void> | undefined;
-    console.info(`Before You worker · Live mode — durable queue and independent Gmail polling · browser runtime: ${browserRuntimeFromEnv(process.env.BROWSER_RUNTIME) === 'local_controlled' ? 'local controlled-fixture browser (not Daytona)' : 'Daytona sandbox'} · Gmail import: ${gmailTestModeEnabled() ? 'test mode, subjects containing [BY-TEST] only' : 'normal mailbox sync'}`);
+    console.info(`Antelens worker · Live mode — durable queue and independent Gmail polling · browser runtime: ${browserRuntimeFromEnv(process.env.BROWSER_RUNTIME) === 'local_controlled' ? 'local controlled-fixture browser (not Daytona)' : 'Daytona sandbox'} · Gmail import: ${gmailTestModeEnabled() ? 'test mode, subjects containing [BY-TEST] only' : 'normal mailbox sync'}`);
     while (!stopped) {
         try {
             await pump();

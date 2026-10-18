@@ -1,9 +1,13 @@
 import { browser } from 'wxt/browser';
+import { PageBundleSchema,redactCaptureText } from '@beforeyou/contracts';
+import {collectVisiblePage} from '../src/capture';
+import {config} from '../src/config';
 export default defineContentScript({
   matches: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'], registration: 'runtime',
   main(ctx) {
     let previous = ''; let timer: ReturnType<typeof setTimeout> | undefined;
     async function observe() {
+      if(location.origin===config.captureOrigin&&config.capturePaths.includes(location.pathname))return; // This controlled flow captures only after an explicit panel action.
       const container = document.querySelector('main,article,form') ?? document.body;
       if (!container) return;
       const texts: string[] = [];
@@ -27,7 +31,7 @@ export default defineContentScript({
       previous = hash;
       await browser.runtime.sendMessage({ type: 'observation', payload: { clientEventId: crypto.randomUUID(), observedAt: new Date().toISOString(), pageUrl: location.origin + location.pathname, pageTitle: document.title.slice(0, 1000), eventType, request } }).then(result => { if (!result?.ok) previous = ''; }).catch(() => { previous = ''; });
     }
-    const rescan = (message: { type?: string }) => { if (message.type === 'beforeyou:rescan') { previous = ''; void observe(); } };
+    const rescan = (message: { type?: string }) => { if(message.type==='beforeyou:capture')return Promise.resolve({bundle:PageBundleSchema.parse(collectVisiblePage(document,window,redactCaptureText))}); if (message.type === 'beforeyou:rescan') { previous = ''; void observe(); } };
     browser.runtime.onMessage.addListener(rescan);
     const observer = new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(() => void observe(), 1000); });
     observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });

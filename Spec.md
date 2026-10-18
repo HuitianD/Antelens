@@ -1,4 +1,4 @@
-# Before You — Product Specification
+# Antelens — Product Specification
 
 Status: Approved product direction; implementation not yet verified.
 
@@ -6,7 +6,7 @@ This document defines product behavior and acceptance. `Contracts.md` defines th
 
 ## 1. Product definition
 
-Before You automatically investigates requests before a person pays, shares identity information, grants account access, or downloads software. It turns incoming messages and supported webpage observations into concise action cards backed by inspectable evidence. New evidence updates the existing case and preserves the earlier judgment.
+Antelens automatically investigates requests before a person pays, shares identity information, grants account access, or downloads software. It turns incoming messages and supported webpage observations into concise action cards backed by inspectable evidence. New evidence updates the existing case and preserves the earlier judgment.
 
 The core loop is:
 
@@ -94,6 +94,8 @@ Remove promotional and redundant copy, including “The important part at a glan
 | Activity | Received messages, investigation progress, new evidence, user handling events, and judgment changes. No invented activity. |
 | Connections | Actual connection status, last successful sync, errors, connect/reconnect/disconnect controls, and extension status. |
 | Browser panel | Current supported page's investigation state, concise judgment if available, one finding, and a route to case details. |
+
+Captured page checks default to a standalone browser case and work without any email cases or connection. **Link to an email · Optional** is a collapsed secondary control; an explicit selection retains email comparison. A standalone finding describes captured recurring charges, cancellation terms, or sensitive-information requests using exact saved evidence. It must not invent an email discrepancy or treat a disclosed subscription alone as fraud. An explicit browser-case recheck preserves that case and its history; different pages are not merged merely by hostname. Offline inspection limits remain visible, and closing/reopening the extension reloads the actual persisted run state.
 
 Every surface includes appropriate empty, loading, disconnected, limited, error, and retry states. Connection labels must distinguish Not connected, Connecting, Connected, and Reconnect required according to actual backend state.
 

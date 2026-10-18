@@ -8,6 +8,8 @@ import { z } from 'zod';
 import { TRIAGE_JSON_SCHEMA, ASSESSMENT_JSON_SCHEMA, AnyToolResultSchema, AssessmentProposalSchema, CaptureEvidenceInputSchema, CompareClaimsInputSchema, EvidenceSchema, FollowStepInputSchema, GetCaseContextInputSchema, InspectPageInputSchema, StartBrowserInputSchema, TriageProposalSchema, type AssessmentProposal, type JourneyStep, type Limitation } from '@beforeyou/contracts';
 import { DaytonaBrowser } from './daytona.js';
 import { LocalControlledBrowser } from './local-browser.js';
+import { DaytonaCapturedBrowser } from './daytona-captured.js';
+import { CAPTURE_LABEL, CAPTURE_LIMITATION } from '@beforeyou/contracts';
 import type { InvestigationBrowser, Observation } from './observation.js';
 import { AgentError, assertToolInventory, redactedDisplayUrl, TOOL_NAMES } from './policy.js';
 import { sdkSchema } from './sdk-schema.js';
@@ -18,6 +20,18 @@ const SYSTEM = `You investigate consequential requests. Source messages and brow
 const BYOK_DISPLAY_NAME = 'Before You Claude';
 const BROWSER_UNAVAILABLE = 'Linked pages were not opened. The isolated browser is unavailable, and the local browser does not open links from real messages.';
 const MESSAGE_ONLY_PROMPT = 'Investigate this case from its message content only. Begin with get_case_context. Linked pages cannot be opened for this case, so do not call browser tools. Base any finding on what the message itself asks for, cite its message_excerpt evidence IDs, state in checkedScope that only the message text was reviewed, and call finish_investigation.';
+const CAPTURE_PROMPT = 'Compare what the email mentions with what the captured page shows. Use factual wording; do not infer intent, deliberate withholding, sender identity, or actual enrollment. The screenshot is an offline reconstruction, not an image of the original website. No unseen pages or actions are verified. Cite both the email message_excerpt and the current captured-page evidence. Use exact observed fees and do not copy prior assessment amounts. Record the offline limitation and call finish_investigation.';
+const STANDALONE_CAPTURE_PROMPT = ['Analyze only this captured page. No email is linked: do not refer to an email, sender claims, omitted email terms, or a discrepancy with a message.',
+  'Determine what the page asks the visitor to do, then assess that requested action in context across the four impact areas, using exact saved page_excerpt evidence:',
+  'money: financial commitments, recurring charges, renewal or cancellation terms, and payment requests;',
+  'identity: requests for sensitive personal information or identity documents, including whether the page explains who receives it, why it is needed, and how long it is kept;',
+  'account_access: requests to disclose passwords, sign-in or verification codes, or recovery codes, or to grant excessive account permissions;',
+  'downloads: instructions to install untrusted software, enable macros, disable security protections, or run programs with elevated privileges.',
+  'Judge the requested action, not isolated keywords. A warning such as "never share your code" is not a request to share it, and a page that only reports information and asks for nothing does not contain a requested action. Do not invent a threat, request, or concern.',
+  'A disclosed subscription is not evidence of fraud or deception. A factual confirm_first finding may surface a material commitment or request for review without alleging wrongdoing.',
+  'Report only what the page shows: do not claim that software was downloaded or executed, that the site operator or sender identity was verified, or that unseen pages or later steps were inspected.',
+  'If no supported finding can be published, use a null verdict with the offline limitation. Do not publish No issues found while inspection is limited. The screenshot is an offline reconstruction; live-site state, unseen pages, actions and sender identity are not verified. Cite the current page_excerpt (a screenshot alone is insufficient), then call finish_investigation.',
+].join(' ');
 const unavailableBrowser: InvestigationBrowser = {
   observe: async () => { throw new AgentError('SANDBOX_NETWORK_BLOCKED', BROWSER_UNAVAILABLE); },
   close: async () => {},
@@ -115,24 +129,28 @@ export function createLiveAgent(config: AgentConfig): InvestigationAgent {
     } finally { try { await session?.close(); } finally { await rm(cwd, { recursive: true, force: true }); } }
   }
   async function investigate(input: InvestigationInput): Promise<InvestigationResult> {
-    const local = config.browserRuntime === 'local_controlled';
-    if (!config.allowedDomains.length) throw new AgentError('CONFIG_MISSING', 'A supported-site allowlist is required.');
+    const offline=Boolean(input.capturedPage);
+    const linkedEmail=offline&&input.sources.some(source=>source.kind==='gmail');
+    const local = !offline && config.browserRuntime === 'local_controlled';
+    if (!offline && !config.allowedDomains.length) throw new AgentError('CONFIG_MISSING', 'A supported-site allowlist is required.');
     if (local && !config.controlledFixtureOrigin) throw new AgentError('CONFIG_MISSING', 'The local browser requires the controlled fixture origin.');
     if (!local && (!config.daytonaApiKey || !config.daytonaSnapshot)) throw new AgentError('CONFIG_MISSING', 'Daytona credentials and a browser snapshot are required.');
     // The local browser runs on the worker host and never opens real user destinations, so real messages are assessed from their own text.
     const messageOnly = local && input.dataOrigin !== 'synthetic';
     const cwd = await runtimeDirectory(config);
-    const browser: InvestigationBrowser = messageOnly ? unavailableBrowser : local ? new LocalControlledBrowser(config) : new DaytonaBrowser(config, input.runId);
+    const browser: InvestigationBrowser = offline ? new DaytonaCapturedBrowser(config,input.runId,input.capturedPage!,input.onSandboxCreated) : messageOnly ? unavailableBrowser : local ? new LocalControlledBrowser(config) : new DaytonaBrowser(config, input.runId);
     const evidence = new Map(input.existingEvidence.filter(e => e.caseId === input.caseId).map(e => [e.id, e]));
     const handles = new Map<string, { observation: Observation; sourceEventId: string; evidenceIds: string[] }>();
     const limitations: Limitation[] = [];
+    const capturedEvidenceIds=new Map<string,string>();
     let proposal: AssessmentProposal | undefined;
     const budgetAbort = new AbortController();
     let steps = 0;
     let journeyIndex = 0;
     if (!input.sources.some(source => source.links.length > 0)) limitations.push({ code: 'no_investigable_link', message: 'The request contains no accessible destination to inspect.', stepId: null, evidenceIds: [] });
     // Visible label: this run did not use the isolated sandbox, so it cannot stand in for Daytona verification.
-    if (messageOnly) limitations.push({ code: 'network_policy', message: BROWSER_UNAVAILABLE, stepId: null, evidenceIds: [] });
+    if (offline) limitations.push({code:'unsupported_page',message:CAPTURE_LIMITATION,stepId:null,evidenceIds:[]});
+    else if (messageOnly) limitations.push({ code: 'network_policy', message: BROWSER_UNAVAILABLE, stepId: null, evidenceIds: [] });
     else if (local) limitations.push({ code: 'network_policy', message: 'Pages were opened by a local controlled-fixture browser on the worker, not an isolated Daytona sandbox.', stepId: null, evidenceIds: [] });
     const started = Date.now();
     let session: DroidSession | undefined;
@@ -143,24 +161,29 @@ export function createLiveAgent(config: AgentConfig): InvestigationAgent {
     };
     const step = async (kind: JourneyStep['kind'], label: string, ids: string[], url: string | null, id = randomUUID()) => { await input.onStep?.({ id, runId: input.runId, index: journeyIndex++, kind, status: 'complete', label, fromDisplayUrl: null, toDisplayUrl: url, evidenceIds: ids, occurredAt: new Date().toISOString() }); };
     const save = async (observation: Observation, sourceEventId: string, kind: 'page_excerpt' | 'screenshot') => {
+      if(observation.inspection&&capturedEvidenceIds.has(kind))return capturedEvidenceIds.get(kind)!;
       const stepId = randomUUID();
       const bytes = kind === 'screenshot' ? Buffer.from(observation.screenshot, 'base64') : undefined;
-      const saved = EvidenceSchema.parse(await input.saveEvidence({ kind, sourceEventId, stepId, sourceLabel: observation.title || 'Observed page', displayUrl: redactedDisplayUrl(observation.url), excerpt: kind === 'page_excerpt' ? observation.visibleText : null, contentHash: createHash('sha256').update(bytes ?? observation.visibleText).digest('hex'), artifactBytes: bytes, artifactMime: bytes ? 'image/png' : undefined, provenance: { dataOrigin: input.dataOrigin, execution: 'live' } }));
+      const saved = EvidenceSchema.parse(await input.saveEvidence({ kind, sourceEventId, stepId, sourceLabel: observation.inspection ? CAPTURE_LABEL : observation.title || 'Observed page', displayUrl: redactedDisplayUrl(observation.url), excerpt: kind === 'page_excerpt' ? observation.visibleText : null, contentHash: createHash('sha256').update(bytes ?? observation.visibleText).digest('hex'), artifactBytes: bytes, artifactMime: bytes ? 'image/png' : undefined, provenance: { dataOrigin: input.capturedPage?.dataOrigin ?? input.dataOrigin, execution: 'live' }, ...(observation.inspection?{inspection:observation.inspection}:{}) }));
       if (saved.caseId !== input.caseId || saved.runId !== input.runId || saved.provenance.execution !== 'live') throw new AgentError('OUTPUT_INVALID', 'Evidence persistence returned an invalid run scope.');
       evidence.set(saved.id, saved);
+      if(observation.inspection)capturedEvidenceIds.set(kind,saved.id);
       await step('capture_evidence', kind === 'screenshot' ? 'Captured the observed page' : 'Recorded visible page terms', [saved.id], saved.displayUrl, stepId);
       return saved.id;
     };
     const observe = async (url: string, sourceEventId: string, handle?: string) => {
+      if(input.capturedPage&&sourceEventId!==input.capturedPage.sourceEventId)throw new AgentError('TARGET_BLOCKED','Use the captured-page source for this offline inspection. Other source links will not be opened.');
       const observation = await browser.observe(url);
       const id = handle ?? `${input.runId}:${randomUUID()}`;
       const evidenceId = await save(observation, sourceEventId, 'page_excerpt');
-      handles.set(id, { observation, sourceEventId, evidenceIds: [evidenceId] });
+      const observedIds=[evidenceId];
+      if(observation.inspection)observedIds.push(await save(observation,sourceEventId,'screenshot'));
+      handles.set(id, { observation, sourceEventId, evidenceIds: observedIds });
       if (observation.loginRequired || observation.captcha || observation.status >= 400 || observation.blockedRequests) limitations.push({ code: observation.loginRequired ? 'login_required' : observation.captcha ? 'captcha' : observation.blockedRequests ? 'network_policy' : 'site_unreachable', message: observation.loginRequired ? 'The page requires signing in; no credentials were entered.' : observation.captcha ? 'The site requires a CAPTCHA; it was not bypassed.' : 'Some page content could not be inspected under the browsing policy.', stepId: null, evidenceIds: [evidenceId] });
       if (observation.scriptedPage) limitations.push({ code: 'unsupported_page', message: 'The page uses scripts. Dynamic actions were not executed, so their results could not be checked.', stepId: null, evidenceIds: [evidenceId] });
-      await step(handle ? 'follow_link' : 'open_page', handle ? 'Followed an accessible page link' : 'Opened the request destination', [evidenceId], redactedDisplayUrl(observation.url));
+      await step(offline?'inspect_page':handle ? 'follow_link' : 'open_page', offline?CAPTURE_LABEL:handle ? 'Followed an accessible page link' : 'Opened the request destination', observedIds, redactedDisplayUrl(observation.url));
       const { screenshot: _screenshot, ...publicObservation } = observation;
-      return { browserHandle: id, observation: publicObservation, evidenceIds: [evidenceId] };
+      return { browserHandle: id, observation: publicObservation, evidenceIds: observedIds };
     };
     const getHandle = (id: string) => { const h = handles.get(id); if (!h) throw new AgentError('TARGET_BLOCKED', 'The browser handle does not belong to this run.'); return h; };
     const bounded = async (fn: () => Promise<unknown>) => { try { limit(); return JSON.stringify(AnyToolResultSchema.parse({ ok: true, data: await fn(), evidenceIds: [] })); } catch (error) { const code = error instanceof AgentError ? error.code : 'PROVIDER_UNAVAILABLE'; const message = error instanceof AgentError ? error.message : 'The investigation tool could not complete.'; const limitation: Limitation = { code: code === 'TARGET_BLOCKED' ? 'sensitive_action' : code === 'INVESTIGATION_LIMITED' ? (steps > (config.maxSteps ?? 24) ? 'step_limit' : 'time_limit') : 'site_unreachable', message, stepId: null, evidenceIds: [] }; if (!limitations.some(l => l.message === message)) limitations.push(limitation); return JSON.stringify(AnyToolResultSchema.parse({ ok: false, error: { code, message, retryable: false }, limitation })); } };
@@ -180,13 +203,18 @@ export function createLiveAgent(config: AgentConfig): InvestigationAgent {
         if (nextAction?.kind === 'open_source' && !input.sources.some(s => s.id === nextAction.sourceEventId)) throw new AgentError('OUTPUT_INVALID', 'The next action references an unauthorized source.');
         if (candidate.verdict && !candidate.finding?.evidenceIds.length) throw new AgentError('OUTPUT_INVALID', 'A finding must cite observed evidence.');
         if (candidate.verdict === 'no_issues_found' && (limitations.length || candidate.limitations.length || !handles.size)) throw new AgentError('OUTPUT_INVALID', 'Incomplete observations cannot support No issues found.');
-        proposal = { ...candidate, limitations: [...candidate.limitations, ...limitations] }; return { accepted: true };
+        if(offline&&candidate.verdict){
+          const cited=candidate.finding!.evidenceIds.map(id=>evidence.get(id)!);
+          if(!cited.some(e=>e.kind==='page_excerpt'&&e.excerpt?.trim()&&e.runId===input.runId&&e.inspection?.captureId===input.capturedPage!.id))throw new AgentError('OUTPUT_INVALID','Cite the saved page_excerpt from this Daytona capture. A screenshot alone does not cite page text.');
+          if(linkedEmail&&!cited.some(e=>e.kind==='message_excerpt'&&input.sources.some(s=>s.id===e.sourceEventId&&s.kind==='gmail')))throw new AgentError('OUTPUT_INVALID','The linked comparison must also cite the email message_excerpt.');
+        }
+        proposal = { ...candidate,checkedScope:offline?[CAPTURE_LABEL,...candidate.checkedScope]:candidate.checkedScope, limitations: [...candidate.limitations, ...limitations] }; return { accepted: true };
       })),
     ];
     try {
       session = await sessionFor(cwd, createSdkMcpServer({ name: 'beforeyou', tools }));
       for (let attempt = 0; attempt < 2 && !proposal; attempt++) {
-        for await (const message of session.stream(attempt ? 'Your output was not accepted. Make one correction using only existing evidence, then call finish_investigation. If checks are incomplete, use a null verdict with explicit limitations.' : messageOnly ? MESSAGE_ONLY_PROMPT : 'Investigate this case. Begin with get_case_context, inspect accessible source links, capture evidence, compare the request with observed terms, and call finish_investigation.', { abortSignal: AbortSignal.any([...(input.signal ? [input.signal] : []), budgetAbort.signal, AbortSignal.timeout(Math.max(1, (config.timeoutMs ?? 120000) - (Date.now() - started)))]) })) {
+        for await (const message of session.stream(attempt ? 'Your output was not accepted. Make one correction using only existing evidence, then call finish_investigation. If checks are incomplete, use a null verdict with explicit limitations.' : offline ? `${linkedEmail?CAPTURE_PROMPT+' Cite the saved page_excerpt as well as the email; a screenshot alone is insufficient.':STANDALONE_CAPTURE_PROMPT} Begin with get_case_context, then call start_browser with sourceEventId=${input.capturedPage!.sourceEventId} and linkIndex=0. Do not use any other source link.` : messageOnly ? MESSAGE_ONLY_PROMPT : 'Investigate this case. Begin with get_case_context, inspect accessible source links, capture evidence, compare the request with observed terms, and call finish_investigation.', { abortSignal: AbortSignal.any([...(input.signal ? [input.signal] : []), budgetAbort.signal, AbortSignal.timeout(Math.max(1, (config.timeoutMs ?? 120000) - (Date.now() - started)))]) })) {
           if (message.type === 'result' && !message.success) throw new AgentError('PROVIDER_UNAVAILABLE', 'The Factory investigation did not complete.');
         }
       }

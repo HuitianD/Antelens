@@ -12,7 +12,7 @@ interface DatabaseClient {query(sql:string,values?:unknown[]):Promise<{rows:Reco
 interface DatabasePool {connect():Promise<DatabaseClient>;end():Promise<void>}
 interface CheckpointOptions {setupPrivateBucket?:boolean;fetch?:typeof globalThis.fetch;poolFactory?:(connectionString:string)=>DatabasePool;expectedMigrations?:{hash:string;createdAt:number}[]}
 const REQUIRED=['SUPABASE_URL','DATABASE_URL','SUPABASE_STORAGE_BUCKET','NEXT_PUBLIC_SUPABASE_URL','NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'];
-const TABLES=['connections','source_events','cases','case_sources','investigation_runs','investigation_steps','artifacts','evidence','assessments','review_events','activity_events','outbox_events','browser_installations','oauth_states','idempotency_records'];
+const TABLES=['connections','source_events','cases','case_sources','investigation_runs','investigation_steps','artifacts','evidence','assessments','review_events','activity_events','outbox_events','browser_installations','oauth_states','idempotency_records','page_captures'];
 function missing(value:string|undefined){return !value||value.includes('your-')||value.includes('<project');}
 function role(key:string):string|undefined{try{return JSON.parse(Buffer.from(key.split('.')[1]??'','base64url').toString()).role as string|undefined;}catch{return undefined;}}
 async function migrations(){const directory=new URL('../../../packages/db/migrations/',import.meta.url);const journal=JSON.parse(await readFile(new URL('meta/_journal.json',directory),'utf8')) as {entries:{tag:string;when:number}[]};return Promise.all(journal.entries.map(async entry=>({createdAt:entry.when,hash:createHash('sha256').update(await readFile(new URL(`${entry.tag}.sql`,directory),'utf8')).digest('hex')})));}

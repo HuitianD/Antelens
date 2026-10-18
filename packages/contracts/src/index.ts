@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { CapturedInspectionSchema } from './page-capture';
+export * from './page-capture';
 
 export const API_VERSION = '1' as const;
 export const API_PREFIX = '/v1' as const;
@@ -48,6 +50,7 @@ export const EvidenceSchema = z.strictObject({
   id: IdSchema, caseId: IdSchema, runId: IdSchema.nullable(), sourceEventId: IdSchema.nullable(), stepId: IdSchema.nullable(), kind: EvidenceKindSchema,
   observedAt: TimestampSchema, sourceLabel: BoundedText(500), displayUrl: z.string().max(2048).nullable(), excerpt: z.string().max(32000).nullable(),
   artifactId: IdSchema.nullable(), contentHash: z.string().regex(/^[a-f0-9]{64}$/), provenance: ProvenanceSchema,
+  inspection: CapturedInspectionSchema.optional(),
 });
 export const FindingSchema = z.strictObject({ headline: BoundedText(120), consequence: BoundedText(180).nullable(), evidenceIds: Ids.min(1) });
 export const NextActionSchema = z.discriminatedUnion('kind', [
@@ -72,6 +75,7 @@ export const InvestigationRunSchema = z.strictObject({
   status: RunStatusSchema, attempt: z.number().int().nonnegative(), startedAt: TimestampSchema.nullable(), finishedAt: TimestampSchema.nullable(),
   modelId: Text, promptVersion: Text, policyVersion: Text, toolVersion: Text, provenance: ProvenanceSchema,
   limitations: z.array(LimitationSchema), error: ApiErrorDetailSchema.nullable(),
+  pageCaptureId: IdSchema.optional(),
 });
 export const JourneyStepSchema = z.strictObject({
   id: IdSchema, runId: IdSchema, index: z.number().int().nonnegative(), kind: z.enum(['open_page', 'follow_link', 'inspect_page', 'capture_evidence', 'compare_sources']),
@@ -135,7 +139,10 @@ export const ActivityEventSchema = z.discriminatedUnion('type', [
 export const EventTypeSchema = z.enum(['source.received', 'source.updated', 'case.created', 'case.updated', 'case.history_updated', 'investigation.queued', 'investigation.started', 'investigation.step_completed', 'investigation.limited', 'investigation.failed', 'investigation.cancelled', 'assessment.published', 'review.updated', 'connection.updated', 'resync.required']);
 export const DashboardCountsSchema = z.strictObject({ pause_here: z.number().int().nonnegative(), confirm_first: z.number().int().nonnegative(), no_issues_found: z.number().int().nonnegative(), checking: z.number().int().nonnegative(), limited: z.number().int().nonnegative(), stale: z.number().int().nonnegative() });
 export const DashboardSnapshotSchema = z.strictObject({ mode: AppModeSchema, counts: DashboardCountsSchema, cases: PageSchema(CaseSummarySchema), activity: z.array(ActivityEventSchema), connections: z.array(ConnectionSummarySchema) });
-export const CaseDetailSchema = z.strictObject({ case: CaseSummarySchema, sources: z.array(SourceEventSchema), currentAssessment: AssessmentSchema.nullable(), activeRun: InvestigationRunSchema.nullable(), latestRun: InvestigationRunSchema.nullable(), journey: z.array(JourneyStepSchema), evidence: z.array(EvidenceSchema), historyCursor: z.string().nullable() });
+export const CaseDetailSchema = z.strictObject({ case: CaseSummarySchema, sources: z.array(SourceEventSchema), currentAssessment: AssessmentSchema.nullable(), activeRun: InvestigationRunSchema.nullable(), latestRun: InvestigationRunSchema.nullable(), journey: z.array(JourneyStepSchema), evidence: z.array(EvidenceSchema), historyCursor: z.string().nullable(),
+  // Existing ingestion metadata only. A saved link does not imply that its contents were inspected.
+  sourceReferences: z.array(z.strictObject({ sourceEventId: IdSchema, originalUrl: z.url().nullable(), links: z.array(z.url()) })).optional(),
+});
 export const MessageSummarySchema = SourceEventSchema.extend({ caseIds: Ids });
 export const MessageDetailSchema = z.strictObject({ source: SourceEventSchema, content: z.string().max(100000), caseIds: Ids, originalUrl: z.url().nullable() });
 export const RunDetailSchema = z.strictObject({ run: InvestigationRunSchema, steps: z.array(JourneyStepSchema) });

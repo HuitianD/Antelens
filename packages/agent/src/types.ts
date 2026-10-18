@@ -1,4 +1,4 @@
-import type { Assessment, AssessmentProposal, Evidence, JourneyStep, Limitation, TriageProposal } from '@beforeyou/contracts';
+import type { Assessment, AssessmentProposal, Evidence, JourneyStep, Limitation, TriageProposal, StoredPageCapture, CapturedInspection } from '@beforeyou/contracts';
 export interface AgentConfig {
   factoryApiKey: string;
   anthropicApiKey: string;
@@ -18,16 +18,19 @@ export interface AgentConfig {
   droidExecPath?: string;
   runtimeDirectory?: string;
 }
-export interface AgentSource { id: string; title: string; content: string; links: string[] }
+export interface AgentSource { id: string; title: string; content: string; links: string[]; kind?:'gmail'|'browser' }
 export interface TriageInput { source: AgentSource; candidateCases: Array<{id: string; title: string; sourceEventIds?: string[]}>; signal?: AbortSignal }
 export interface EvidenceCapture {
   kind: Evidence['kind']; sourceEventId: string | null; stepId: string; sourceLabel: string;
   displayUrl: string | null; excerpt: string | null; contentHash: string;
   artifactBytes?: Uint8Array; artifactMime?: string; provenance: { dataOrigin: 'synthetic' | 'user'; execution: 'live' };
+  inspection?: CapturedInspection;
 }
 export interface InvestigationInput {
   ownerId: string; caseId: string; runId: string; sourceRevision: number; dataOrigin: 'synthetic' | 'user';
   sources: AgentSource[]; existingEvidence: Evidence[]; priorAssessment?: Assessment | null;
+  capturedPage?: StoredPageCapture;
+  onSandboxCreated?: (sandboxId:string)=>Promise<void>;
   saveEvidence: (capture: EvidenceCapture) => Promise<Evidence>;
   onStep?: (step: JourneyStep) => Promise<void>;
   signal?: AbortSignal;

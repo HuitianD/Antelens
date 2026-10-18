@@ -1,86 +1,51 @@
-# Before You
+# Antelens
 
-A workspace for investigating consequential requests before payment, identity sharing, account authorization, or downloads. The original repository was initialized as **FruadForge**.
+Antelens assesses consequential email requests and pages you choose to capture before you pay, share sensitive information, grant account access, or download something. It shows a concrete finding, the supporting source evidence, and a next action, so you can decide what to do with the request.
 
-## Run locally
+![Antelens dashboard showing a rental-fee comparison with labeled simulated evidence](docs/screenshots/release-dashboard.jpg)
 
-Use **Node 24.22.0** (pinned in `.nvmrc`) and **pnpm 10.34.7**. The agent has installed an ignored local toolchain in this checkout; other checkouts use their Node version manager.
+- **Understand the request.** Review consequential emails in one workspace, filter by impact, and distinguish requests needing attention from messages requiring no action.
+- **Inspect the evidence.** Read exact saved excerpts, enlarge screenshots, and compare an email with an explicitly linked page capture. Standalone page checks need no email.
+- **Follow changes.** See actual processing stages, retain assessment history, and revisit the evidence belonging to each version without losing your place in the list.
 
-```sh
-pnpm install
-pnpm dev
-```
+## Quick start — simulated demo
 
-Open **http://127.0.0.1:3000**. `pnpm dev` explicitly starts demo mode: Next.js, Fastify at port 4000, and a separate persistent worker. No external account or API key is required. Keep the dashboard open or close it; the worker processes the same saved jobs independently.
+Install **Node.js 24.22.0**, including npm, from the [official Node.js distribution](https://nodejs.org/dist/v24.22.0/): use the macOS `.pkg` or Windows `.msi` installer for your processor. Install [Git](https://git-scm.com/downloads) if needed, then open a new Terminal on macOS or PowerShell on Windows. No version manager or Corepack is required. Internet access is needed to download the repository and dependencies.
 
-Demo data persists in `.local/demo-state.json`. It contains only synthetic messages and simulated findings. The reset API `POST /v1/demo/reset` replaces only this disposable demo state. `pnpm db:seed` is idempotent and retains existing demo history. Demo services bind only to loopback and reject production startup.
-
-In this prepared checkout, the installed toolchain can also be selected without changing system settings:
+The following commands work in both shells. They install the repository's pinned **pnpm 10.34.7** and select the delivery branch:
 
 ```sh
-export PATH="$PWD/.local/toolchain/node_modules/node/bin:$PWD/.local/toolchain/node_modules/.bin:$PATH"
-pnpm dev
+node --version
+npm install --global pnpm@10.34.7
+pnpm --version
+git clone --branch UIUX https://github.com/HuitianD/FruadForge.git BeforeYou
+cd BeforeYou
+pnpm install --frozen-lockfile
+pnpm dev:demo
 ```
 
-## Review the product
+Open **http://127.0.0.1:3000**. The launcher starts the dashboard, local API, and a separate background worker. This mode requires **no API keys, Supabase project, Gmail consent, browser extension, or Playwright browser installation**. Do not copy a real-provider environment file into this checkout. If either default port is occupied, use the separate-port instructions in [local setup](docs/setup.md).
 
-1. Open **Review charges**. Compare the $40 application message with the $29 monthly membership terms in the captured sample evidence.
-2. Expand **Demo tools** below the workspace and choose **Add demo reply**. The separate worker revises the existing rental case, retains the unresolved conflict, and preserves version 1 in assessment history.
-3. In **All messages**, choose **No action needed**. The newsletter stays a message and never becomes a favorable action card.
+Look for **Demo data**: all messages, findings, screenshots, and investigation results in this mode are explicitly synthetic and simulated. Open the rental request to compare a one-time $40 application fee with a $29/month membership. In **Activity → Demo tools**, choose **Add demo reply** to watch the background worker publish another version and retain its history. In **All messages**, choose **No action needed** to see a reading-only message without an assessed verdict.
 
-The UI refinement preview runs at **http://127.0.0.1:3002**, with its isolated demo API at port 4002; existing live services retain ports 3000/4000. See the [UI review checklist](docs/ui-review.md). Browser tests use the isolated demo ports and refuse to reset a live API. Standard `pnpm dev` still defaults to port 3000.
+Leave the terminal running during review. Stop it with **Ctrl+C**; disposable demo state persists in `.local/demo-state.json` for your next session. The worker processes queued changes independently of an open dashboard. See setup troubleshooting for installation, ports, and optional test commands.
 
-All visible demo findings are `synthetic/simulated`. The browser-panel preview does not imply an installed extension. Screenshots are in [docs/screenshots](docs/screenshots). Local UI and API verification do not prove the live integrations.
+## Real integrations
 
-## Implementation status
+The authenticated path is separate from the simulated quick start. **Gmail** imports authorized mail and schedules email-text assessments. **Chrome** captures visible content only after the owner grants a supported site and clicks **Check this page**; linking an email is optional. It excludes cookies, tokens, entered form values, hidden sensitive data, and original executable scripts.
 
-| Capability | Status |
+**Factory** is the running agent harness: its Droid SDK executes an explicitly configured Anthropic Claude model with restricted investigation tools and validated assessment output. **Daytona** receives the captured, self-contained bundle, renders an offline reconstruction using installed Chromium, and returns actual text and screenshot evidence. **Supabase** provides authentication, owner-scoped persistence, private evidence storage, and assessment history. These controlled live paths have saved verification receipts; simulated tests alone do not establish their success. Follow the [integration guide](docs/integrations.md) for credentials, consent, and extension setup.
+
+## Current limits
+
+Automatic email-link browsing and sender identity verification are **not implemented**. Extracting a URL does not inspect its contents. Daytona currently inspects offline captured content; this does not verify live website state or unseen pages. A disclosed subscription alone is not evidence of fraud. **No action needed** describes a message's disposition; **No issues found** is a distinct assessment restricted to its checked scope. The verification record identifies outstanding live acceptance gates rather than implying complete coverage.
+
+## Review and engineering guides
+
+| Guide | Contents |
 | --- | --- |
-| Overview, messages, evidence/history drawer, Activity, Connections, browser preview | Implemented; desktop/mobile browser workflows verified |
-| Saved demo state, background jobs, fetch SSE, viewing/rechecks, same-case revisions | Implemented and tested with explicit simulation |
-| Shared Zod contracts, Drizzle migrations, owner checks, leases, outbox, immutable history | Implemented; actual PostgreSQL SQL tested offline with PGlite |
-| Gmail OAuth and incremental polling | Live consent and `[BY-TEST]` import verified. User-origin messages are assessed from the message text while Daytona is unavailable; linked pages are not opened locally |
-| Factory Claude BYOK (Droid CLI 0.212.1, `claude-sonnet-4-6`) | Live-verified: SC-01 triage, investigation tools, evidence-backed `pause_here` assessment, Supabase persistence, and dashboard display (2026-10-18) |
-| Daytona browser sandbox | Implemented and preserved; blocked by Tier 1 egress (TLS reset). Not verified. Interim `BROWSER_RUNTIME=local_controlled` opens only controlled fixture pages. Real mailbox links stay closed and those runs publish as `limited` |
-| Chrome MV3 extension | Production build and isolated Chromium pre-consent smoke verified; owner-profile sign-in/consent unverified |
-| Supabase Auth, PostgreSQL, private Storage | Adapters/configuration prepared; live project checkpoint blocked on credentials |
-| Railway deployment | Configuration prepared; no deployment or paid resource created |
-
-**The minimum release remains incomplete** until the live acceptance gates in `Spec.md` pass. The [integration guide](docs/integrations.md) contains exact owner actions and secret destinations. Secrets belong in ignored `.env.local` or service secret settings, never chat, source, or browser bundles.
-
-Latest local verification: **88 deterministic tests and 3 Chromium workflows passed**. Workspace lint, typechecks, frozen-lockfile installation, and production web/extension builds passed. The built production page was also opened in Chromium: it requires sign-in and exposes no demo controls. Local evaluation reports 8 policy/contract checks passed and 1 unsupported model-accuracy check. See the [acceptance evidence and remaining gates](docs/verification.md).
-
-## Commands
-
-| Command | Purpose |
-| --- | --- |
-| `pnpm dev` / `pnpm dev:demo` | Complete local demo with persistent API and worker |
-| `pnpm dev:live` | Authenticated live processes; missing required database/auth configuration fails closed |
-| `pnpm build` | Typecheck all packages, build production Next.js and Chrome extension; rejects explicit demo bypass |
-| `pnpm lint` / `pnpm typecheck` | Static checks across workspace boundaries |
-| `pnpm test` | Contract, policy, SQL repository, API, demo worker, and connector regressions |
-| `pnpm test:e2e` | Real Chromium workflows using labeled demo adapters; screenshots and traces saved locally |
-| `pnpm db:migrate` | Tracked, checksum-checked Drizzle migration against the explicitly selected live development database; no reset |
-| `pnpm db:seed` | Idempotent synthetic demo seed through the running API |
-| `pnpm run doctor` | Redacted local service/configuration report; exits 2 when live gates are blocked |
-| `pnpm check:supabase` | Read-only live database, Auth, and private Storage checkpoint; missing prerequisites exit 2 |
-| `pnpm eval` | Versioned local policy/contract evaluation with provenance; no model accuracy claim |
-| `pnpm eval --live` | Real provider evaluation when authorized configuration is available; no simulated fallback |
-
-Playwright requires its browser installation on a fresh machine: `pnpm exec playwright install chromium`. This checkout already has Chromium in ignored `.local/browsers`, which the test configuration discovers. Browser tests start the demo when needed. The follow-up test checks each durable processing stage instead of assuming the entire simulated pipeline finishes inside a five-second assertion; see [the measured trace](docs/follow-up-trace.md).
-
-`pnpm doctor` is pnpm's own built-in command and does not invoke this repository's diagnostic script. Use `pnpm run doctor` explicitly.
-
-## Chrome extension
-
-Run `pnpm --filter @beforeyou/extension build`, then load `apps/extension/.output/chrome-mv3` using Chrome's **Load unpacked** control. Default production builds require real sign-in. See the [extension setup](docs/integrations.md#chrome-extension) for exact callback, public build fields, site permissions, and the distinction between a real extension and the dashboard preview.
-
-Site capture requires both Chrome host permission and an explicit consent record for a supported origin. The API's transport permission does not authorize page observation. No cookies, entered passwords, OTPs, payment credentials, or identity documents are captured.
-
-## Integration and security boundaries
-
-Supabase application sign-in and Gmail mailbox consent are separate flows. Gmail requests only `gmail.readonly`; the application processes at most the 50 newest messages within seven days at first connection, excluding Spam/Trash, then follows changes. Credentials are encrypted server-side.
-
-Factory is the actual runtime harness, configured for a specific Anthropic Claude BYOK model. The worker inventories and restricts tools before source content is sent. Daytona hosts the isolated browser; the trusted backend stores run state and evidence. The adapters stop before login, payments, form submissions, authorization grants, or executing downloads. Supported destinations and redirect/IP restrictions are enforced outside the model prompt.
-
-Live verification has not run. [Compatibility notes](docs/compatibility.md), [integration handoff](docs/integrations.md), and [deployment configuration](deployment) record the selected versions and remaining account gates. Font licenses accompany the unchanged reference font files in `apps/web/public/fonts`; the original HTML remains at the root and in `design/reference`.
+| [Setup](docs/setup.md) / [real integrations](docs/integrations.md) | Fresh-machine demo, troubleshooting, accounts and configuration |
+| [Demo script](docs/demo-script.md) | Three-minute controlled live walkthrough and labeled saved fallback |
+| [Architecture](Contracts.md) / [product specification](Spec.md) | Components, schemas, trust boundaries and release criteria |
+| [Verification](docs/verification.md) | Actual checks, live receipts, operating systems tested and remaining gates |
+| [Documentation index](docs/README.md) | Operations, design review and compatibility details |

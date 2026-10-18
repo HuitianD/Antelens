@@ -9,7 +9,7 @@ if (mode === 'demo') {
     let stopping = false;
     for (const signal of ['SIGINT', 'SIGTERM'] as const)
         process.on(signal, () => { stopping = true; });
-    console.info('Before You worker · Demo data — persistent simulated job processing');
+    console.info('Antelens worker · Demo data — persistent simulated job processing');
     while (!stopping) {
         try {
             await store.transaction(s => processDemoJobs(s));

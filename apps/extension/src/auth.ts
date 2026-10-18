@@ -1,13 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 import { browser } from 'wxt/browser';
+import { authStorageKey, isAuthStorageKey, sessionNeedsRefresh } from './auth-session';
 import { config } from './config';
+let client:ReturnType<typeof createClient>|undefined;
 export function authClient() {
   if (!config.supabaseUrl || !config.supabaseKey) throw new Error('Application sign-in is not configured.');
-  return createClient(config.supabaseUrl, config.supabaseKey, { auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storage: {
-    async getItem(key) { const value = (await browser.storage.session.get(key))[key]; return typeof value === 'string' ? value : null; },
-    async setItem(key, value) { await browser.storage.session.set({ [key]: value }); },
-    async removeItem(key) { await browser.storage.session.remove(key); },
-  } } });
+  if (!client) {
+    client = createClient(config.supabaseUrl, config.supabaseKey, { auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storage: {
+      async getItem(key) { const value = (await browser.storage.local.get(authStorageKey(key)))[authStorageKey(key)]; return typeof value === 'string' ? value : null; },
+      async setItem(key, value) { await browser.storage.local.set({ [authStorageKey(key)]: value }); },
+      async removeItem(key) { await browser.storage.local.remove(authStorageKey(key)); },
+    } } });
+    // The service worker's refresh timer dies when Chrome suspends it. Restart it on every wake.
+    void client.auth.startAutoRefresh();
+  }
+  return client;
+}
+export async function clearStoredSession() {
+  const stored = await browser.storage.local.get(null);
+  const keys = Object.keys(stored).filter(isAuthStorageKey);
+  if (keys.length) await browser.storage.local.remove(keys);
 }
 export async function signIn() {
   const auth = authClient();
@@ -21,9 +33,16 @@ export async function signIn() {
   const session = await auth.auth.exchangeCodeForSession(code);
   if (session.error) throw new Error('Sign-in expired. Try again.');
 }
+export async function signInWithPassword(email:string,password:string){const result=await authClient().auth.signInWithPassword({email,password});if(result.error||!result.data.session)throw new Error('Sign-in could not complete. Check your workspace email and password.');}
 export async function access() {
   if (config.mode === 'demo') return { owner: 'demo', token: '' };
-  const { data, error } = await authClient().auth.getSession();
-  if (error || !data.session) throw new Error('Sign in to Before You to connect this browser.');
+  const auth = authClient();
+  let { data, error } = await auth.auth.getSession();
+  if (!error && data.session && sessionNeedsRefresh(data.session.expires_at, Date.now())) {
+    const refreshed = await auth.auth.refreshSession();
+    data = refreshed.data;
+    error = refreshed.error;
+  }
+  if (error || !data.session) throw new Error('Sign in to Antelens to connect this browser.');
   return { owner: data.session.user.id, token: data.session.access_token };
 }

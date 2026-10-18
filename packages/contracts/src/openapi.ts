@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import {AcceptedPageCaptureSchema,PageCaptureInputSchema,BrowserSiteGrantInputSchema} from './page-capture';
 import { AcceptedBrowserEventSchema, AcceptedRunSchema, ApiErrorSchema, ApiResponseSchema, AssessmentSchema, BrowserEventInputSchema, BrowserInstallationInputSchema, BrowserInstallationSchema, CaseDetailSchema, CaseSummarySchema, ConnectionSummarySchema, ConnectionSyncScopeSchema, DashboardSnapshotSchema, DisconnectionResultSchema, EvidenceDetailSchema, GoogleStartInputSchema, GoogleStartResponseSchema, MessageDetailSchema, MessageSummarySchema, PageSchema, RecheckInputSchema, RunDetailSchema, SystemCapabilitiesSchema, ViewedInputSchema, ActivityEventSchema } from './index';
 
 /** Generated from the same executable schemas used at ingress and publication. */
@@ -11,7 +12,7 @@ export function createOpenApiDocument() {
     responses: { [accepted ? '202' : '200']: { description: accepted ? 'Accepted' : 'Success', content: { 'application/json': { schema: json(ApiResponseSchema(response)) } } }, default: { description: 'Typed error', content: { 'application/json': { schema: json(ApiErrorSchema) } } } },
   });
   const document = {
-    openapi: '3.1.0', info: { title: 'Before You API', version: '1.0.0' }, servers: [{ url: 'http://127.0.0.1:4000' }],
+    openapi: '3.1.0', info: { title: 'Antelens API', version: '1.0.0' }, servers: [{ url: 'http://127.0.0.1:4000' }],
     components: { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } }, schemas: Object.fromEntries(Object.entries(schemas).map(([name, schema]) => [name, json(schema)])) },
     paths: {
       '/health/live': { get: { responses: { '200': { description: 'Process alive' } } } },
@@ -34,6 +35,8 @@ export function createOpenApiDocument() {
       '/v1/connections/{id}/scope': { get: operation(ConnectionSyncScopeSchema) },
       '/v1/browser/installations': { post: operation(BrowserInstallationSchema, BrowserInstallationInputSchema) },
       '/v1/browser/events': { post: operation(AcceptedBrowserEventSchema, BrowserEventInputSchema, true) },
+      '/v1/browser/site-grants': { post: operation(z.object({origin:z.url(),granted:z.boolean()}), BrowserSiteGrantInputSchema) },
+      '/v1/browser/captures': { post: operation(AcceptedPageCaptureSchema, PageCaptureInputSchema, true) },
       '/v1/events': { get: { security: [{ bearerAuth: [] }], responses: { '200': { description: 'Durable owner-scoped event stream', content: { 'text/event-stream': { schema: { type: 'string' } } } } } } },
     },
   };
