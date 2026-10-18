@@ -11,7 +11,7 @@ Uses the official Anthropic frontend-design skill in `.cursor/skills/frontend-de
 
 ```text
 Overview                         Activity
-Judgment filters / search        Actual updates
+Overview groups / search         Actual updates
 Impact filters                   Source status
 [ finding + action ][ finding ]
 [ finding + action ][ limited ]
@@ -27,6 +27,8 @@ Next step / verification / version history
 ```
 
 ## Review against the brief
+
+Overview has three primary groups: Pause here, Confirm first, and No action needed, plus All items. No action needed shows compact rows for messages triaged `no_action` and keeps the No issues found label and checked scope on cases with that current assessment. Pending, failed, and unassessed requests stay in Investigations. A message already linked to a case is not shown again as a row.
 
 Keep the reference's colors, rounded paper surfaces, and distinctive type. Remove redundant eyebrows and non-sequential numbered section headings. Reduce the oversized decorative hero and keep the lens away from individual findings. Use actual persisted events instead of a progress percentage or speculative future stages. Keep stale assessed cards in their existing grid while rechecking. Preserve version guards and stable ordering. Place fixture controls below the workspace in a closed disclosure; do not mix them with daily actions.
 

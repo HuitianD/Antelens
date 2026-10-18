@@ -1,6 +1,6 @@
 import { ArrowRight, Check, CircleAlert, Clock3, Globe2, Mail, Pause, Search } from 'lucide-react';
 import type { ReactNode } from 'react';
-import type { ActivityEvent, CaseSummary, Impact, RunStatus, Verdict } from '@beforeyou/contracts';
+import type { ActivityEvent, CaseSummary, Impact, MessageSummary, RunStatus, Verdict } from '@beforeyou/contracts';
 
 export const verdictLabels: Record<Verdict, string> = { pause_here: 'Pause here', confirm_first: 'Confirm first', no_issues_found: 'No issues found' };
 export const impactLabels: Record<Impact, string> = { money: 'Money', identity: 'Identity', account_access: 'Account access', downloads: 'Downloads' };
@@ -29,6 +29,9 @@ export function CaseCard({ item, onOpen }: { item: CaseSummary; onOpen: (id: str
     {!a && <div className="unassessed-note">{pending ? <span className="processing-dot" /> : <CircleAlert size={15} />}<span>{pending ? 'No judgment yet' : 'No assessment published'}</span></div>}
     <button className="card-cta" onClick={() => onOpen(item.id)}>{a?.nextAction.label || (status === 'limited' ? 'Review the limitation' : status === 'failed' ? 'Review and retry' : 'View investigation')}<ArrowRight size={17} /></button>
   </article>;
+}
+export function QuietMessageRow({ message, onOpen }: { message: MessageSummary; onOpen: (id: string) => void }) {
+  return <button className="message-row" onClick={() => onOpen(message.id)}><span className="source-icon">{message.kind === 'gmail' ? <Mail size={17} /> : <Globe2 size={17} />}</span><span className="message-copy"><span className="from">{message.senderLabel || message.kind} · {time(message.occurredAt)}</span><strong>{message.title}</strong><span className="message-preview">{message.previewText}</span><span className="tag clear">No action needed</span></span><ArrowRight size={15} /></button>;
 }
 export function ErrorState({ title, message, action, label = 'Workspace error', children }: { title: string; message: string; action?: ReactNode; label?: string; children?: ReactNode }) {
   return <div className="error-state" role="alert" aria-label={label}><CircleAlert size={20} /><div><strong>{title}</strong><p>{message}</p>{children}</div>{action && <div className="error-action">{action}</div>}</div>;

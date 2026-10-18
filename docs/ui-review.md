@@ -4,7 +4,7 @@ Preview: **http://127.0.0.1:3002**. This is explicit demo mode with synthetic da
 
 ## Review checklist
 
-1. On Overview, filter by judgment and impact. Each card has one finding and one primary action. The normal comparison case includes its checked scope; a limited case has no favorable judgment.
+1. On Overview, use All items, Pause here, Confirm first, and No action needed. No action needed shows completed `no_action` messages as compact rows and current No issues found cases with their checked scope. Pending, failed, and unassessed requests stay under Investigations. Each case card has one finding and one primary action. Opening a message row uses the existing message detail. A limited case has no favorable judgment.
 2. Open **Review charges**. Compare the exact **Message says** and **Page shows** excerpts, source metadata, and labeled screenshot. Enlarge it, zoom, fit the image, and press Escape; focus returns to the image trigger and the case stays open.
 3. Expand **Demo tools** below the workspace and add a demo reply. Reopen the rental case if necessary. Its card retains its position during the recheck; version 2 preserves the conflict and version 1 remains inspectable. Expanded history survives updates.
 4. Open **Review the limitation** to inspect recorded events and the unavailable step. Use Demo tools to preview empty/error states, then clear filters or retry. On mobile, compare the stacked evidence and use image zoom without page overflow.
