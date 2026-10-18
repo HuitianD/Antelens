@@ -12,13 +12,15 @@ Standalone findings describe observed terms: recurring charges, renewal/cancella
 
 Persistence was intact: the run saved one email excerpt, a 380-character page excerpt, and a screenshot. The finding cited the email and screenshot, but not the page-excerpt ID. The UI selected the cited screenshot for **Page shows** and read its intentionally empty `excerpt` field.
 
-The renderer now resolves companion text using the exact saved case, run, source, display URL, capture ID and bundle hash. It labels this **Saved text from the same capture as the cited screenshot**. It never copies checked-scope or assessment prose into evidence, and it never substitutes a different capture. Existing immutable assessments remain unchanged. New captured-page findings must cite a nonempty `page_excerpt`; explicitly linked comparisons must also cite the email. Standalone cases omit the empty email column.
+The renderer now resolves companion text using the exact saved case, run, source, display URL, capture ID and bundle hash. It displays the persisted text with its source and capture time. It never copies checked-scope or assessment prose into evidence, and it never substitutes a different capture. Existing immutable assessments remain unchanged. New captured-page findings must cite a nonempty `page_excerpt`; explicitly linked comparisons must also cite the email. Standalone cases omit the empty email column.
 
 ## Status recovery
 
 The extension saves only owner/page-scoped receipt identifiers and page metadata in trusted extension storage. It reloads the exact run through authenticated APIs, rather than assuming the case's latest run belongs to the popup's capture. Complete, limited, failed and cancelled runs reach explicit terminal UI states even after closing/reopening the popup. Passwords, page contents and assessment prose are not stored in these receipts. Supabase sign-in storage remains separate.
 
 ## Checks
+
+Final hackathon verification is pending the magnifier handoff/merge. The commands below describe the earlier isolated live checkpoint, not an instruction to rerun it during release preparation. Owner-profile rehearsal after the merge must follow the [demo script](demo-script.md).
 
 `pnpm test` covers zero-email SQL ingestion, idempotency, exact-page case reuse, history, cross-owner denial, standalone/linked prompt paths, required text citations, historical screenshot companion matching and status restoration. Providers in these deterministic tests are explicitly mocked and are not live proof.
 
@@ -39,7 +41,7 @@ No schema migration, case-model rewrite, new billing capability or sandbox netwo
 - Changing the captured membership from $29 to $39 created assessment versions 1 and 2 on the same browser case, with different captured terms/screenshots. Both runs recorded zero network requests. Findings described the recurring membership without email-discrepancy or fraud claims.
 - The authenticated dashboard loaded the actual private screenshot and standalone page evidence at desktop and 390px mobile widths. Cross-owner access to the existing rental email case was denied to the isolated test account.
 - The original explicitly linked rental case was rechecked through the signed-in dashboard and retained both email and current page-text citations. Its previous version 6 now displays the immutable 380-character companion excerpt paired with its cited screenshot.
-- Workspace typechecks, production web/extension build, lint, 117 deterministic regressions and all eight browser workflows passed across the full run and affected rerun. The mobile outage test now holds successful background responses until Retry is clicked; it no longer races automatic recovery. No product/test timeout was increased to conceal an investigation failure.
+- The earlier standalone implementation passed its then-current 117 deterministic regressions and eight browser workflows; the superseding 122-test/14-browser-check baseline and final merge gate are recorded in [verification](verification.md). The mobile outage test now holds successful background responses until Retry is clicked; it no longer races automatic recovery. No product/test timeout was increased to conceal an investigation failure.
 
 The root build now leaves extension public settings to `apps/extension/.env.local` unless explicitly supplied by the deployment/CLI environment. This prevents older root-file site defaults from overwriting the working controlled-site configuration. The production web build used `WEB_DIST_DIR=.local/production-web` to keep its output separate from the running dashboard.
 

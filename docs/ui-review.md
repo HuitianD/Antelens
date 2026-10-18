@@ -4,7 +4,7 @@ Preview: **http://127.0.0.1:3002**. This is explicit demo mode with synthetic da
 
 ## Review checklist
 
-1. On Overview, use All items, Pause here, Confirm first, and No action needed. No action needed shows completed `no_action` messages as compact rows and current No issues found cases with their checked scope. Pending, failed, and unassessed requests stay under Investigations. Each case card has one finding and one primary action. Opening a message row uses the existing message detail. A limited case has no favorable judgment.
+1. On Overview, use All items, Pause here, Confirm first, and No action needed. No action needed shows completed `no_action` messages as compact rows and current No issues found cases with their checked scope. Pending, failed, and unassessed requests stay under Investigations. Each case card has one finding and one primary action. Opening a message row uses the existing message detail. A limited case has no favorable judgment. No action needed is not a verified-safe verdict; No issues found remains a separate completed assessment.
 2. Open **Review charges**. Compare the exact **Message says** and **Page shows** excerpts, source metadata, and labeled screenshot. Enlarge it, zoom, fit the image, and press Escape; focus returns to the image trigger and the case stays open.
 3. Expand **Demo tools** below the workspace and add a demo reply. Reopen the rental case if necessary. Its card retains its position during the recheck; version 2 preserves the conflict and version 1 remains inspectable. Expanded history survives updates.
 4. Open **Review the limitation** to inspect recorded events and the unavailable step. Use Demo tools to preview empty/error states, then clear filters or retry. On mobile, compare the stacked evidence and use image zoom without page overflow.
@@ -17,7 +17,9 @@ The approved cool gray, muted blue, URW Gothic, Palladio, and lens motif remain.
 
 The static rental screenshot is an explicitly labeled illustrative UI fixture. Its source and provenance are in [design/fixtures](../design/fixtures/README.md). Live records use the existing authenticated evidence API and never fall back to this fixture. This UI work does not establish provider connectivity or live model accuracy.
 
-## Verification
+## Earlier frontend-pass verification
+
+These are historical counts from the initial frontend refinement, superseded by the [evidence/release baseline](verification.md). Final merged magnifier inspection is pending.
 
 - **8 frontend tests passed:** stable versions/order/history, exact evidence selection, pending-run observation ownership, and rejection of demo images for live/user evidence.
 - **7 Chromium workflows passed:** existing message/evidence/history flows, mobile/keyboard/error recovery, screenshot fit/zoom/focus, failed-image retry, actual pending events, and limited outcomes.

@@ -2,7 +2,13 @@
 
 A workspace for investigating consequential requests before payment, identity sharing, account authorization, or downloads. The original repository was initialized as **FruadForge**.
 
-## Run locally
+## Current delivery status
+
+Release preparation is complete on `UIUX`; the final magnifier merge, merged checks and owner-Chrome rehearsal are pending Claude's completion handoff. Do not describe this as final readiness. Follow the [three-minute demo script](docs/demo-script.md), [operational checklist](docs/captured-page-demo.md#operational-checklist) and [verification baseline](docs/verification.md).
+
+The prepared **authenticated capture demo** uses dashboard **http://127.0.0.1:3000**, API **http://127.0.0.1:4000**, and controlled page **http://127.0.0.1:4080/fixtures/SC-01?monthlyFee=29**. Preserve the running services and data; do not run another worker or the startup commands below while they are active. For a fully stopped configured stack, `pnpm dev:capture` starts web/API/worker/fixture together with real providers. It inspects an offline reconstruction of the owner-captured page, not the original live website.
+
+## Credential-free local mode
 
 Use **Node 24.22.0** (pinned in `.nvmrc`) and **pnpm 10.34.7**. The agent has installed an ignored local toolchain in this checkout; other checkouts use their Node version manager.
 
@@ -11,7 +17,7 @@ pnpm install
 pnpm dev
 ```
 
-Open **http://127.0.0.1:3000**. `pnpm dev` explicitly starts demo mode: Next.js, Fastify at port 4000, and a separate persistent worker. No external account or API key is required. Keep the dashboard open or close it; the worker processes the same saved jobs independently.
+On a fresh, fully stopped checkout, open **http://127.0.0.1:3000**. `pnpm dev` explicitly starts demo mode: Next.js, Fastify at port 4000, and a separate persistent worker. No external account or API key is required. Keep the dashboard open or close it; the worker processes the same saved jobs independently.
 
 Demo data persists in `.local/demo-state.json`. It contains only synthetic messages and simulated findings. The reset API `POST /v1/demo/reset` replaces only this disposable demo state. `pnpm db:seed` is idempotent and retains existing demo history. Demo services bind only to loopback and reject production startup.
 
@@ -22,7 +28,7 @@ export PATH="$PWD/.local/toolchain/node_modules/node/bin:$PWD/.local/toolchain/n
 pnpm dev
 ```
 
-## Review the product
+## Review the simulated UI
 
 1. Open **Review charges**. Compare the $40 application message with the $29 monthly membership terms in the captured sample evidence.
 2. Expand **Demo tools** below the workspace and choose **Add demo reply**. The separate worker revises the existing rental case, retains the unresolved conflict, and preserves version 1 in assessment history.
@@ -32,7 +38,7 @@ The UI refinement preview runs at **http://127.0.0.1:3002**, with its isolated d
 
 All visible demo findings are `synthetic/simulated`. The browser-panel preview does not imply an installed extension. Screenshots are in [docs/screenshots](docs/screenshots). Local UI and API verification do not prove the live integrations.
 
-Evidence presentation now follows the saved sources: email-only excerpts, standalone captured pages, or email/page comparison. Historical comparisons use their own run and capture, screenshots retain enlargement, and detailed scope is grouped in one disclosure. See [evidence presentation checks](docs/evidence-presentation-review.md).
+Evidence presentation now follows the saved sources: email-only excerpts, standalone captured pages, or email/page comparison. Historical comparisons use their own run and capture, screenshots retain enlargement, and detailed scope is grouped in one disclosure. See [evidence presentation checks](docs/verification.md#evidence-presentation-checkpoint).
 
 ## Implementation status
 
@@ -41,24 +47,27 @@ Evidence presentation now follows the saved sources: email-only excerpts, standa
 | Overview, messages, evidence/history drawer, Activity, Connections, browser preview | Implemented; desktop/mobile browser workflows verified |
 | Saved demo state, background jobs, fetch SSE, viewing/rechecks, same-case revisions | Implemented and tested with explicit simulation |
 | Shared Zod contracts, Drizzle migrations, owner checks, leases, outbox, immutable history | Implemented; actual PostgreSQL SQL tested offline with PGlite |
-| Gmail OAuth and incremental polling | Live consent and `[BY-TEST]` import verified. Standard user-origin runs remain message-only; explicitly associated captures add offline Daytona evidence. Mailbox links are not opened locally |
-| Factory Claude BYOK (Droid CLI 0.212.1, `claude-sonnet-4-6`) | Live-verified: SC-01 triage, investigation tools, evidence-backed `pause_here` assessment, Supabase persistence, and dashboard display (2026-10-18) |
-| Daytona browser sandbox | Real offline bundle upload, Chromium rendering, evidence download and cleanup verified on Tier 1. General website egress remains blocked; normal Gmail runtime retained |
-| Connected captured-page checkpoint | Real Gmail case → durable queue → Factory/Claude + offline Daytona → Supabase evidence and assessment revisions verified at $29/$39. [Load and review the extension](docs/captured-page-demo.md) |
-| Standalone browser checks | Real zero-email extension flow, Daytona/Claude evidence, same-case $29/$39 rechecks, history and popup reopen verified. Version 6 screenshot-only citations resolve their exact saved companion text |
-| Chrome MV3 extension | Default standalone browser checks; collapsed optional email linking; exact-page rechecks and saved run-state restoration. [Reload/review guide](docs/standalone-page-checks.md). Existing owner-profile linked capture reached version 6 |
-| Supabase Auth, PostgreSQL, private Storage | Configured development project; tracked capture migration and real private screenshot persistence/download verified. Owner-profile flow remains a separate checkpoint |
+| Gmail ingestion and email-text assessment | Authorized `[BY-TEST]` import and real message-text Claude assessments persisted; worker polls independently. Current user-mail runs remain message-only unless the owner explicitly links a capture |
+| URL extraction | HTML href/plaintext HTTP(S) extraction and selection of saved link indexes implemented. Detecting a URL does not inspect its contents |
+| Owner-initiated Chrome page capture | Explicit controlled-site grant and Check this page capture visible text, field labels and inert structure, excluding browser credentials, entered values, hidden sensitive data and original executable scripts |
+| Standalone checks / optional email linking | Real zero-email owner checks, same-browser-case $29/$39 rechecks and popup recovery verified. Explicit email selection preserves the Gmail comparison |
+| Offline Daytona inspection | Real SDK bundle transfer, installed Chromium reconstruction, JSON/PNG evidence, hashes, zero network requests and cleanup verified on Tier 1. Not a visit to the original website |
+| Factory / Claude | Actual restricted Droid execution with Anthropic BYOK `claude-sonnet-4-6`; persisted run/session identity and evidence-backed assessments |
+| Supabase Auth / evidence / history | Real authenticated owner-scoped cases, private screenshots, immutable assessment history and saved dashboard results verified; not every live security/recovery gate is complete |
+| Automatic opening of email links | **Deferred** in this demo; general network egress is unavailable. [Future requirements](docs/integrations.md#future-automatic-email-link-investigation) are documented, not enabled |
+| Live website state, unseen pages, sender identity | **Not verified** by a captured-page reconstruction or an email-text assessment |
 | Railway deployment | Configuration prepared; no deployment or paid resource created |
 
 **The minimum release remains incomplete** until the live acceptance gates in `Spec.md` pass. The [integration guide](docs/integrations.md) contains exact owner actions and secret destinations. Secrets belong in ignored `.env.local` or service secret settings, never chat, source, or browser bundles.
 
-The captured-page checkpoint and current checks are recorded in the [connected demo guide](docs/captured-page-demo.md). Earlier UI/evaluation acceptance evidence remains in [verification](docs/verification.md); fixture tests do not prove live integration behavior.
+The [verification record](docs/verification.md) distinguishes the existing 122-test/14-browser-check baseline, saved real provider receipts and pending final integration gates. Fixture tests do not prove live integrations. **No action needed** is a message disposition/group, not a verified-safe verdict; a completed **No issues found** assessment is a separate outcome restricted to its checked scope.
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
 | `pnpm dev` / `pnpm dev:demo` | Complete local demo with persistent API and worker |
+| `pnpm dev:capture` | Authenticated live stack plus the controlled capture site; only start when the existing stack is stopped |
 | `pnpm dev:live` | Authenticated live processes; missing required database/auth configuration fails closed |
 | `pnpm build` | Typecheck all packages, build production Next.js and Chrome extension; rejects explicit demo bypass |
 | `pnpm lint` / `pnpm typecheck` | Static checks across workspace boundaries |
@@ -85,6 +94,6 @@ Site capture requires both Chrome host permission and an explicit consent record
 
 Supabase application sign-in and Gmail mailbox consent are separate flows. Gmail requests only `gmail.readonly`; the application processes at most the 50 newest messages within seven days at first connection, excluding Spam/Trash, then follows changes. Credentials are encrypted server-side.
 
-Factory is the actual runtime harness, configured for a specific Anthropic Claude BYOK model. The worker inventories and restricts tools before source content is sent. Daytona hosts the isolated browser; the trusted backend stores run state and evidence. The adapters stop before login, payments, form submissions, authorization grants, or executing downloads. Supported destinations and redirect/IP restrictions are enforced outside the model prompt.
+Factory is the actual runtime harness, configured for a specific Anthropic Claude BYOK model. The worker inventories and restricts tools before source content is sent. Daytona hosts the isolated browser; the trusted backend stores run state and evidence. The adapters stop before login, payments, form submissions, authorization grants, or executing downloads. Offline captures make no website requests. Existing network adapter policy code is groundwork for the deferred URL/redirect/public-IP enforcement gate, not proof of live website verification.
 
 Controlled live capture verification is recorded in the [standalone check report](docs/standalone-page-checks.md). [Compatibility notes](docs/compatibility.md), [integration handoff](docs/integrations.md), and [deployment configuration](deployment) record the selected versions and remaining release gates. Font licenses accompany the unchanged reference font files in `apps/web/public/fonts`; the original HTML remains at the root and in `design/reference`.

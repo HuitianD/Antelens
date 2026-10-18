@@ -1,67 +1,72 @@
-# Connected captured-page demo
+# Connected capture demo operations
 
-Dashboard: **http://127.0.0.1:3000/?case=f6d3e61d-d270-4a16-9c7e-76194078e643**. Controlled page: **http://127.0.0.1:4080/fixtures/SC-01?monthlyFee=29**.
+Authenticated dashboard: **http://127.0.0.1:3000**. Existing linked rental case: **http://127.0.0.1:3000/?case=f6d3e61d-d270-4a16-9c7e-76194078e643**. Controlled page: **http://127.0.0.1:4080/fixtures/SC-01?monthlyFee=29**.
 
-This is real offline inspection of a controlled, synthetic page capture against an existing authorized Gmail rental email. It is not live website verification, unseen-page exploration, sender verification, or proof of enrollment. Every captured-page observation displays **Captured page inspected in Daytona**. The screenshot is an inert reconstruction of selected content, not a screenshot of the original website. Findings remain `limited` with the offline scope stated.
+Use the [three-minute script](demo-script.md) for presentation and [verification](verification.md) for the dated evidence. Final integrated verification is pending Claude's magnifier completion handoff. A saved run is not a fresh demonstration.
 
-## Load and review
+This path uses owner-initiated Chrome capture, real offline Daytona rendering, real Factory/Claude assessment and Supabase evidence/history. The screenshot reconstructs selected captured content; no original website visit, unseen-page exploration, sender verification or enrollment is claimed. Each offline observation is labeled **Captured page inspected in Daytona** and retains `limited` scope.
 
-1. Open `chrome://extensions`, enable **Developer mode**, and click **Load unpacked**. Choose `/Users/dsteven/Desktop/BeforeYou/apps/extension/.output/chrome-mv3`. If already installed, click **Reload** after a new build.
-2. Confirm extension ID `oonbnpicjomfiddbiaegfdpdjiofdccn`. The public manifest key keeps this local ID stable; it is not a secret or a signing credential.
-3. Open the controlled page above and open Before You from Chrome's toolbar. Sign in with your Before You account. Enter credentials only in the local extension form, never chat. The configured flow uses Supabase email/password; it needs no new OAuth callback or provider authorization. Email linking is now optional; see [standalone checks](standalone-page-checks.md).
-4. Click **Allow this site** and accept Chrome's permission if it shows a prompt. This records both a Chrome grant and an owner-scoped server grant for `http://127.0.0.1:4080`. Transport permission for API port 4000 does not itself authorize collection.
-5. Click **Check this page** for a standalone browser case. To exercise email comparison instead, expand **Link to an email · Optional**, choose the existing Maple Court rental email case, ID beginning `f6d3e6`, then check. That explicit association retains the existing Gmail case.
-6. Open **View case details**. Review **Message says** ($40 one-time application fee), **Page shows** (required $29/month membership), the exact offline-inspection label, the screenshot and its zoom. Open History to inspect earlier immutable versions.
-7. Change the page URL to `http://127.0.0.1:4080/fixtures/SC-01?monthlyFee=39`, reopen the extension, choose the same case and check again. The new page quote, screenshot and assessment must show $39; the $29 version stays in history. Return the URL to `monthlyFee=29` for the starting demonstration.
+## Operational checklist
 
-The owner-profile linked Chrome capture reached version 6. Its persisted text-display issue is diagnosed in [standalone checks](standalone-page-checks.md); matching saved text is now rendered without changing historical assessments. Isolated automated browser checks remain distinct from actions in the owner's Chrome profile.
+Do not restart working services, reset/seed the database, send mail, rotate credentials or launch another worker. Phase A preserves the current processes and data. Commands below are recovery/startup instructions, not a request to run them against the working stack.
 
-## Prepared configuration
+1. **Select the existing toolchain in the original checkout**, not the magnifier worktree:
 
-The running local processes already use these settings. On a fresh start, `pnpm dev:capture` starts the authenticated live dashboard/API/worker plus the controlled fixture server. It fails closed without real providers. `pnpm dev:demo` remains the separate credential-free simulation.
+   ```sh
+   cd /Users/dsteven/Desktop/BeforeYou
+   export PATH="$PWD/.local/toolchain/node_modules/node/bin:$PWD/.local/toolchain/node_modules/.bin:$PATH"
+   ```
 
-Root ignored `.env.local`:
+   Node 24.22.0 and pnpm 10.34.7 are already installed locally. Do not reinstall/update dependencies or the lockfile for this preparation.
 
-| Field | Destination/value |
-| --- | --- |
-| `APP_MODE` | `live` |
-| `CAPTURE_ALLOWED_ORIGIN` | `http://127.0.0.1:4080` |
-| `CAPTURE_ALLOWED_PATH` | `/fixtures/SC-01` |
-| `ALLOWED_EXTENSION_ORIGINS` | `chrome-extension://oonbnpicjomfiddbiaegfdpdjiofdccn` |
-| `DAYTONA_API_KEY`, `DAYTONA_SNAPSHOT` | Existing configured Tier 1 key and `beforeyou-browser-v1` snapshot; no billing or network changes |
-| `FACTORY_API_KEY`, `ANTHROPIC_API_KEY`, `CLAUDE_MODEL_ID` | Existing real Factory/Anthropic credentials and explicit `claude-sonnet-4-6` |
-| `DATABASE_URL`, `SUPABASE_URL`, backend key, storage bucket | Existing configured development Supabase project; migration `0002_page_captures` applied without reset |
+2. **Check existing services before any startup.** `lsof -nP -iTCP:3000 -iTCP:4000 -iTCP:4080 -sTCP:LISTEN` lists listeners. Required processes are:
 
-`apps/extension/.env.local` contains only an explicit public allowlist: `APP_MODE=live`, `VITE_API_ORIGIN=http://127.0.0.1:4000`, `VITE_WEB_ORIGIN=http://127.0.0.1:3000`, the browser-public Supabase URL/publishable key, `VITE_SUPPORTED_ORIGINS=http://127.0.0.1:4080`, `VITE_CAPTURE_ORIGIN=http://127.0.0.1:4080`, `VITE_CAPTURE_PATH=/fixtures/SC-01`, and `VITE_GOOGLE_SIGN_IN_ENABLED=false`. No root server secret is copied to this file or browser bundle. Build with `pnpm --filter @beforeyou/extension build`.
+   | Process | Purpose / review signal |
+   | --- | --- |
+   | Next.js web, port 3000 | Authenticated dashboard, source-specific evidence and persisted updates |
+   | Fastify API, port 4000 | `/health/live` should report `mode: live`; authenticated case/evidence/stream APIs |
+   | One live worker process | pg-boss/outbox processing and Gmail polling; it stays alive when the popup/dashboard closes. It has no HTTP listener; preserve the existing launcher/worker and inspect its terminal if uncertain |
+   | Controlled fixture host, port 4080 | GET `/fixtures/SC-01?monthlyFee=29` shows $40 application fee plus required $29/month membership |
+   | Supabase and configured providers | Existing Auth, PostgreSQL, private bucket, Factory/Anthropic and Daytona snapshot settings; no local database reset or new account setup |
 
-The normal Gmail `BROWSER_RUNTIME` and test-mail polling behavior are retained. A capture run overrides only its own browser adapter and always uses Daytona. A failure never switches to a local browser or prewritten assessment.
+   A healthy web/API alone does not prove a worker is executing jobs. Do not launch a worker merely because a run is queued; use its existing terminal and exact persisted run state. Phase B will verify queue-to-terminal behavior.
 
-## Actual checks and evidence
+3. **Only for a fully stopped stack**, `pnpm dev:capture` starts web, API, persistent worker and fixture host together. It validates existing real configuration and forces live child processes even though `.env.local` defaults to demo. Never run it alongside the existing live stack. If only the fixture host is absent while the application/worker are healthy, `pnpm exec tsx scripts/fixture-host.ts` starts that one service. Investigate any other partial failure before adding processes.
 
-On 2026-10-18, the initial probe created the existing snapshot with `networkBlockAll: true`, uploaded a self-contained bundle and reviewed renderer through SDK filesystem calls, rendered with installed Chromium 156, and downloaded JSON plus PNG through the SDK. Both $29 and $39 inspections reported **zero browser network requests**. Bundle and screenshot hashes differed. Sandbox deletion completed through the SDK. No original URL was navigated and no egress policy was changed.
+4. **Use the correct mode and URL.** Open `http://127.0.0.1:3000` for the real capture demonstration and sign in with the existing Before You account. The extension must use the same account for the Gmail case to appear. Gmail consent is separate; preserve the connected `[BY-TEST]` mailbox. Do not run bare `pnpm dev`, which selects simulation on the default ports.
 
-Probe artifacts: ignored `.local/daytona-offline-probe/`. Reproduce with `pnpm --filter @beforeyou/agent exec tsx scripts/probe-daytona-offline.ts`.
+   The optional no-key UI preview belongs on **3002/4002** and displays **Demo data**. Only if it is not already running:
 
-The backend checkpoint selected the existing real Gmail rental case, attached controlled captured content, and followed the committed investigation outbox into pg-boss, the independent worker, actual Factory/Claude tools, actual offline Daytona inspection, private Supabase artifacts, and saved assessments. Versions 2 and 3 showed $29/month and $39/month respectively. The $39 bundle was collected from the rendered local page using the extension's collector. The final repeat uses the same collector at $29. Both provider session IDs and sandbox IDs are stored. Private screenshot download/hash verification passed.
+   ```sh
+   WEB_ORIGIN=http://127.0.0.1:3002 API_ORIGIN=http://127.0.0.1:4002 API_PORT=4002 PORT=3002 WEB_DIST_DIR=.next-ui pnpm dev:demo
+   ```
 
-These checkpoint installations are labeled **Controlled capture checkpoint (backend)** and are distinct from the user's actual Chrome installation. The checkpoint does not assert extension authentication/consent. The existing signed-in dashboard displayed the saved version 4 assessment, exact email/page comparison, and actual private 1280×900 screenshot; screenshot zoom was inspected at desktop and 390px mobile widths without page overflow. The browser viewport was restored. Realtime delivery for a new owner-initiated Chrome capture remains pending that interaction.
+   It uses synthetic/simulated evidence, not the real provider pipeline. Browser regressions may reset only this isolated disposable demo state.
 
-Commands for an explicitly selected existing real Gmail case (never creates a synthetic substitute):
+5. **Build/reload the extension only when its build changes.** Existing load directory:
 
-```sh
-pnpm exec tsx scripts/capture-checkpoint.ts
-PLAYWRIGHT_BROWSERS_PATH="$PWD/.local/browsers" pnpm exec tsx scripts/capture-checkpoint.ts --run --case=<eligible-case-id> --fee=29
-pnpm exec tsx scripts/inspect-capture-checkpoint.ts --watch --fee=29
-pnpm exec tsx scripts/inspect-capture-checkpoint.ts --fee=29 --artifacts
-pnpm exec tsx scripts/inspect-capture-checkpoint.ts --latest-chrome --watch --artifacts
-```
+   `/Users/dsteven/Desktop/BeforeYou/apps/extension/.output/chrome-mv3`
 
-Private reports/screenshots live in ignored `.local/capture-checkpoint/`. The read-only status command traces queue delivery, worker steps, evidence and current assessment. Its timeout reports unfinished work instead of fabricating success. Successful publication requires both email and captured-page citations; older run leases cannot overwrite later source revisions.
+   Build command: `pnpm --filter @beforeyou/extension build`. At `chrome://extensions`, enable **Developer mode**, use **Load unpacked** for the first installation, or click **Reload** on the existing **Before You** card. Confirm ID `oonbnpicjomfiddbiaegfdpdjiofdccn`; do not remove/reinstall or clear extension storage to refresh a build. Pin Before You through Chrome's Extensions menu if necessary. Phase A does not rebuild or reload it; Phase B's production build may require Reload before rehearsal.
 
-Local Chromium checks also cover capture privacy and fee changes, the actual unpacked extension ID and sign-in controls, exact-origin API CORS, and rejection of unauthenticated capture requests. These local tests are separate from provider verification and from the remaining owner-profile interaction.
+6. **Sign in and grant only the controlled site.** Open `http://127.0.0.1:4080/fixtures/SC-01?monthlyFee=29`; open the toolbar popup; enter the existing account's Email/Password in its local form and click **Sign in** if requested. Click **Allow this site**, then accept the native prompt only for `http://127.0.0.1:4080` if shown. Existing grants need no repeat consent. Google application login is disabled; no new OAuth callback is required. API transport permission does not grant page observation.
 
-Final checks: production workspace build and typechecks passed; 107 deterministic regressions passed; all 8 browser workflows passed across the full run and affected rerun. One outdated empty-state assertion was corrected against the actual accessible heading, **No matching items**. Lint passed. The built extension was checked against configured backend secret values and contained none. The read-only Supabase check verified both tracked migrations, 16 private/RLS tables, reachable Auth, and the existing private storage bucket. Review images are in ignored `.local/capture-checkpoint/dashboard-*.jpg`.
+7. **Choose the intended association before capture.** Default **Check this page** creates a standalone browser case. For rental comparison, expand **Link to an email · Optional**, choose `[BY-TEST] 06 — Application fee for Maple Court (f6d3e6)`, and click **Check this page**. Closing the optional control clears its selection. **Recheck this page** keeps an explicitly selected/restored browser case; dashboard **Recheck request** reinspects stored captured content and is not a new Chrome capture.
 
-## Owner boundary
+8. **Inspect the actual result.** **View case details** opens the case. Queued/checking states are real persisted stages; a terminal `limited` run can have a valid assessment without claiming complete site verification. Wait for current-run evidence and assessment, not just a previous card. Confirm exact page fee, capture timestamp, screenshot, **Offline page inspection**, and **Captured page inspected in Daytona**. Close/reopen the popup or use **Refresh status** to read the saved run. No favorable default appears on failure.
 
-**Blocked capability:** Chrome-profile authentication and site permission. **Reason:** owner credentials and consent must be entered in that profile. **Already prepared:** build, exact extension-origin authorization, controlled site, real processing and persistence. **Your action:** steps 1–5 above. **Credential destination:** extension sign-in form only. **Verification:** inspect the new capture receipt, queued run, sandbox/Factory session, private screenshot and new assessment on the same case; confirm dashboard receives the update. **Continuing meanwhile:** regression/build checks and evidence review. General live website browsing remains blocked by the existing Tier 1 egress restriction and is not needed for this offline checkpoint.
+9. **Private evidence access requires authentication.** Open the screenshot with **Enlarge screenshot**; Zoom in/out and Fit image operate on the saved image. If its short-lived URL expires, click **Reload image**. Missing files and loading failures remain explicit; never replace them with fixture art. Keep Supabase sessions, signed URLs, `.env.local`, private reports and credentials out of slides/Git/chat.
+
+10. **Preserve the starting page and saved fallback.** The optional fee-change URL is `http://127.0.0.1:4080/fixtures/SC-01?monthlyFee=39`; a fresh extension capture must be made to observe the change. Existing saved $29/$39 runs prove the earlier sensitivity check; they are not fresh observations. Return the open page to `monthlyFee=29` for the script. Do not submit the protected form or enter real data.
+
+## Configuration ownership
+
+The root ignored `.env.local` already holds server-only configuration. Keep `BROWSER_RUNTIME=local_controlled` and `GMAIL_TEST_MODE=true` for the current bounded Gmail behavior. Explicit captures override only their own browser adapter to real Daytona. Keep `CAPTURE_ALLOWED_ORIGIN=http://127.0.0.1:4080`, `CAPTURE_ALLOWED_PATH=/fixtures/SC-01`, and the configured extension-origin allowlist. No billing/network setting or permission expansion is needed for offline inspection.
+
+The extension's ignored `apps/extension/.env.local` contains only public settings: live mode, API 4000/web 3000 origins, Supabase public URL/publishable key, controlled supported/capture origin and path, Google sign-in disabled. Do not copy root secrets into it. Exact field names and replacement-account pages are in [integrations](integrations.md).
+
+## Diagnostics without a substitute capture
+
+Use the authenticated dashboard and extension's exact saved run state first. Existing `scripts/inspect-capture-checkpoint.ts --latest-chrome --watch --artifacts` is read-only with respect to ingestion and can check an existing Chrome receipt, but it opens a separate database connection and has previously reached the session-pool cap. Prefer application APIs; do not increase the pool or change billing as a workaround.
+
+`scripts/capture-checkpoint.ts --run` creates a backend capture and `scripts/check-standalone-extension.ts --run --headed` uses an isolated test account/profile. Their saved results are useful evidence, but neither substitutes for Phase B's owner-profile Chrome rehearsal. Do not run them during Phase A. The [verification record](verification.md) distinguishes these paths and their timestamps.
