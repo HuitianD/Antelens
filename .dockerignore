@@ -1,0 +1,15 @@
+.git
+.local
+.env
+.env.*
+!.env.example
+node_modules
+**/node_modules
+**/.next
+**/.next-production
+**/.wxt
+**/.output
+test-results
+playwright-report
+docs/screenshots
+apps/extension/review

@@ -1,0 +1,178 @@
+{
+  "startedAt": "2026-10-18T01:13:43.338Z",
+  "stateFile": "/Users/dsteven/Desktop/BeforeYou/.local/demo-state.json",
+  "caseId": "d42e7abf-8d5a-46b1-b448-f387862968e6",
+  "priorVersion": 1,
+  "cursor": "54",
+  "sourceId": "15461ab1-c9a1-477f-9e1e-51fc584b7f91",
+  "runId": "3a19d00f-5dce-4ea7-aba3-10e85ca08fef",
+  "events": [
+    {
+      "id": "55",
+      "type": "source.received",
+      "occurredAt": "2026-10-18T01:13:43.372Z",
+      "elapsedMs": 34,
+      "runId": null
+    },
+    {
+      "id": "56",
+      "type": "source.updated",
+      "occurredAt": "2026-10-18T01:13:44.201Z",
+      "elapsedMs": 863,
+      "runId": null
+    },
+    {
+      "id": "57",
+      "type": "case.updated",
+      "occurredAt": "2026-10-18T01:13:44.203Z",
+      "elapsedMs": 865,
+      "runId": null
+    },
+    {
+      "id": "58",
+      "type": "investigation.queued",
+      "occurredAt": "2026-10-18T01:13:44.203Z",
+      "elapsedMs": 865,
+      "runId": "3a19d00f-5dce-4ea7-aba3-10e85ca08fef"
+    },
+    {
+      "id": "59",
+      "type": "case.updated",
+      "occurredAt": "2026-10-18T01:13:45.210Z",
+      "elapsedMs": 1872,
+      "runId": null
+    },
+    {
+      "id": "60",
+      "type": "investigation.started",
+      "occurredAt": "2026-10-18T01:13:45.210Z",
+      "elapsedMs": 1872,
+      "runId": "3a19d00f-5dce-4ea7-aba3-10e85ca08fef"
+    },
+    {
+      "id": "61",
+      "type": "investigation.step_completed",
+      "occurredAt": "2026-10-18T01:13:46.726Z",
+      "elapsedMs": 3388,
+      "runId": "3a19d00f-5dce-4ea7-aba3-10e85ca08fef"
+    },
+    {
+      "id": "62",
+      "type": "case.updated",
+      "occurredAt": "2026-10-18T01:13:48.241Z",
+      "elapsedMs": 4903,
+      "runId": null
+    },
+    {
+      "id": "63",
+      "type": "assessment.published",
+      "occurredAt": "2026-10-18T01:13:48.242Z",
+      "elapsedMs": 4904,
+      "runId": "3a19d00f-5dce-4ea7-aba3-10e85ca08fef"
+    }
+  ],
+  "observations": [
+    {
+      "elapsedMs": 36,
+      "sourceDisposition": "pending",
+      "sourceStatus": "queued",
+      "activeRunId": null,
+      "runStatus": "complete",
+      "assessmentVersion": 1,
+      "heartbeatAgeMs": 185,
+      "jobs": [
+        {
+          "type": "triage",
+          "stage": 0,
+          "dueInMs": 798
+        }
+      ]
+    },
+    {
+      "elapsedMs": 953,
+      "sourceDisposition": "action_required",
+      "sourceStatus": "complete",
+      "activeRunId": "3a19d00f-5dce-4ea7-aba3-10e85ca08fef",
+      "runStatus": "queued",
+      "assessmentVersion": 1,
+      "heartbeatAgeMs": 90,
+      "jobs": [
+        {
+          "type": "investigate",
+          "stage": 0,
+          "dueInMs": 812
+        }
+      ]
+    },
+    {
+      "elapsedMs": 1980,
+      "sourceDisposition": "action_required",
+      "sourceStatus": "complete",
+      "activeRunId": "3a19d00f-5dce-4ea7-aba3-10e85ca08fef",
+      "runStatus": "checking",
+      "assessmentVersion": 1,
+      "heartbeatAgeMs": 108,
+      "jobs": [
+        {
+          "type": "investigate",
+          "stage": 1,
+          "dueInMs": 1093
+        }
+      ]
+    },
+    {
+      "elapsedMs": 4944,
+      "sourceDisposition": "action_required",
+      "sourceStatus": "complete",
+      "activeRunId": null,
+      "runStatus": "complete",
+      "assessmentVersion": 2,
+      "heartbeatAgeMs": 41,
+      "jobs": []
+    }
+  ],
+  "sse": [
+    {
+      "receivedMs": 1612,
+      "id": "57",
+      "type": "case.updated",
+      "caseId": "d42e7abf-8d5a-46b1-b448-f387862968e6"
+    },
+    {
+      "receivedMs": 1612,
+      "id": "58",
+      "type": "investigation.queued",
+      "caseId": "d42e7abf-8d5a-46b1-b448-f387862968e6"
+    },
+    {
+      "receivedMs": 2415,
+      "id": "59",
+      "type": "case.updated",
+      "caseId": "d42e7abf-8d5a-46b1-b448-f387862968e6"
+    },
+    {
+      "receivedMs": 2415,
+      "id": "60",
+      "type": "investigation.started",
+      "caseId": "d42e7abf-8d5a-46b1-b448-f387862968e6"
+    },
+    {
+      "receivedMs": 4017,
+      "id": "61",
+      "type": "investigation.step_completed",
+      "caseId": "d42e7abf-8d5a-46b1-b448-f387862968e6"
+    },
+    {
+      "receivedMs": 5619,
+      "id": "62",
+      "type": "case.updated",
+      "caseId": "d42e7abf-8d5a-46b1-b448-f387862968e6"
+    },
+    {
+      "receivedMs": 5619,
+      "id": "63",
+      "type": "assessment.published",
+      "caseId": "d42e7abf-8d5a-46b1-b448-f387862968e6"
+    }
+  ]
+}

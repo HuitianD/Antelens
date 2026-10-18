@@ -1,0 +1,21 @@
+{
+  "name": "@beforeyou/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/*.test.ts"
+  },
+  "dependencies": {
+    "@beforeyou/contracts": "workspace:*",
+    "@beforeyou/db": "workspace:*",
+    "@beforeyou/agent": "workspace:*",
+    "@beforeyou/fixtures": "workspace:*",
+    "pg-boss": "12.38.0",
+    "zod": "4.6.7"
+  }
+}

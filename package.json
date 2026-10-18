@@ -1,0 +1,41 @@
+{
+  "name": "beforeyou",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.7",
+  "engines": {
+    "node": ">=24.22.0 <25",
+    "pnpm": "10.34.7"
+  },
+  "scripts": {
+    "dev": "pnpm dev:demo",
+    "dev:demo": "tsx scripts/dev.ts demo",
+    "dev:live": "tsx scripts/dev.ts live",
+    "build": "tsx scripts/build.ts",
+    "lint": "eslint apps packages fixtures evals scripts tests --no-warn-ignored",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "test:e2e": "playwright test",
+    "doctor": "tsx scripts/doctor.ts",
+    "check:supabase": "pnpm --filter @beforeyou/api check:supabase",
+    "db:migrate": "pnpm --filter @beforeyou/db migrate",
+    "db:seed": "tsx scripts/seed.ts",
+    "eval": "tsx evals/run.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.10.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "10.13.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.2",
+    "vitest": "5.0.5"
+  },
+  "pnpm": {
+    "overrides": {
+      "@wxt-dev/module-react>@vitejs/plugin-react": "5.2.0"
+    }
+  }
+}

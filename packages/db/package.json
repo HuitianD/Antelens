@@ -1,0 +1,7 @@
+{
+  "name": "@beforeyou/db", "version": "0.1.0", "private": true, "type": "module",
+  "exports": { ".": "./src/index.ts", "./schema": "./src/schema.ts" },
+  "scripts": { "build": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "tsx --test tests/*.test.ts", "migrate": "tsx src/migrate.ts", "seed": "tsx src/seed.ts" },
+  "dependencies": { "@beforeyou/contracts": "workspace:*", "drizzle-orm": "0.45.4", "pg": "8.23.1" },
+  "devDependencies": { "@types/pg": "8.23.1", "@electric-sql/pglite": "0.5.10" }
+}

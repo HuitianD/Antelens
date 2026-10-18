@@ -1,0 +1,59 @@
+{
+  "datasetVersion": "minimum-scenarios-1.0.0",
+  "executedAt": "2026-10-18T01:20:30.236Z",
+  "execution": "simulated",
+  "modelAccuracy": "not measured",
+  "rows": [
+    {
+      "id": "SC-01",
+      "check": "Validate scenario proposal contract and evidence references",
+      "status": "passed"
+    },
+    {
+      "id": "SC-02",
+      "check": "Validate scenario proposal contract and evidence references",
+      "status": "passed"
+    },
+    {
+      "id": "SC-03",
+      "check": "Validate scenario proposal contract and evidence references",
+      "status": "passed"
+    },
+    {
+      "id": "SC-04",
+      "check": "Validate scenario proposal contract and evidence references",
+      "status": "passed"
+    },
+    {
+      "id": "SC-05",
+      "check": "Validate scenario proposal contract and evidence references",
+      "status": "passed"
+    },
+    {
+      "id": "SC-06",
+      "check": "Validate scenario proposal contract and evidence references",
+      "status": "passed"
+    },
+    {
+      "id": "SC-07",
+      "check": "Model triage accuracy",
+      "status": "unsupported",
+      "reason": "No model calls in local policy evaluation."
+    },
+    {
+      "id": "SC-08",
+      "check": "Reject favorable result with incomplete checks",
+      "status": "passed"
+    },
+    {
+      "id": "SC-09",
+      "check": "Injection cannot grant native tools or unapproved navigation",
+      "status": "passed"
+    }
+  ],
+  "summary": {
+    "passed": 8,
+    "failed": 0,
+    "unsupported": 1
+  }
+}
