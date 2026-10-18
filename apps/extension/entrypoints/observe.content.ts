@@ -7,7 +7,7 @@ export default defineContentScript({
   main(ctx) {
     let previous = ''; let timer: ReturnType<typeof setTimeout> | undefined;
     async function observe() {
-      if(location.origin===config.captureOrigin&&location.pathname===config.capturePath)return; // This controlled flow captures only after an explicit panel action.
+      if(location.origin===config.captureOrigin&&config.capturePaths.includes(location.pathname))return; // This controlled flow captures only after an explicit panel action.
       const container = document.querySelector('main,article,form') ?? document.body;
       if (!container) return;
       const texts: string[] = [];

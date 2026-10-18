@@ -6,8 +6,8 @@ import {assertCaptureScope,assertOfflineProviders} from './captured-pages.js';
 
 test('offline capture ingress rejects unapproved pages, executable data and client provenance (offline)',()=>{
  const env={CAPTURE_ALLOWED_ORIGIN:'http://127.0.0.1:4080',CAPTURE_ALLOWED_PATH:'/fixtures/SC-01'};
- assert.doesNotThrow(()=>assertCaptureScope('http://127.0.0.1:4080/fixtures/SC-01',env));
- for(const url of ['https://unapproved.example/fixtures/SC-01','http://127.0.0.1:4080/fixtures/SC-02','http://127.0.0.1:4080/fixtures/SC-01?token=secret','http://user:secret@127.0.0.1:4080/fixtures/SC-01'])assert.throws(()=>assertCaptureScope(url,env));
+ for(const path of ['SC-01','SC-10','SC-11','SC-12','SC-13'])assert.doesNotThrow(()=>assertCaptureScope(`http://127.0.0.1:4080/fixtures/${path}`,env));
+ for(const url of ['https://unapproved.example/fixtures/SC-01','https://unapproved.example/fixtures/SC-10','http://127.0.0.1:4080/fixtures/SC-02','http://127.0.0.1:4080/fixtures/SC-14','http://127.0.0.1:4080/','http://127.0.0.1:4080/fixtures/SC-10?token=secret','http://127.0.0.1:4080/fixtures/SC-01?token=secret','http://user:secret@127.0.0.1:4080/fixtures/SC-01'])assert.throws(()=>assertCaptureScope(url,env));
  const input={clientCaptureId:randomUUID(),installationId:randomUUID(),caseId:randomUUID(),bundle:{schemaVersion:'1',pageUrl:'http://127.0.0.1:4080/fixtures/SC-01',title:'Controlled rental',capturedAt:new Date().toISOString(),visibleText:'Application fee $40. Membership $29/month.',blocks:[{kind:'paragraph',text:'Application fee $40. Membership $29/month.'}],fieldLabels:['Email'],viewport:{width:1280,height:900}}};
  assert.equal(PageCaptureInputSchema.safeParse(input).success,true);
  const {caseId:_caseId,...standalone}=input;

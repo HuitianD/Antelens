@@ -77,13 +77,13 @@ export default defineBackground(() => {
       if (message.type === 'auth_status') { try { const identity = await access(); return { ok: true, signedIn: Boolean(identity.owner) }; } catch { return { ok: true, signedIn: false }; } }
       if (message.type === 'sign_in') { if(message.email&&message.password)await signInWithPassword(String(message.email),String(message.password));else await signIn(); const stored = await browser.storage.session.get(null); await browser.storage.session.remove(Object.keys(stored).filter(key => key.startsWith('page:'))); await installation(); const tabs = await browser.tabs.query({}); for (const tab of tabs) if (tab.id !== undefined) await browser.tabs.sendMessage(tab.id, { type: 'beforeyou:rescan' }).catch(() => undefined); return { ok: true }; }
       if(message.type==='email_cases'){const page=PageSchema(CaseSummarySchema).parse(await api('/cases?limit=100'));return {ok:true,cases:page.items.filter(c=>c.sourceKinds.includes('gmail')).map(c=>({id:c.id,title:c.title}))};}
-      if(message.type==='grant_site'){const origin=String(message.origin);if(origin!==config.captureOrigin)throw new Error('Only the controlled rental origin is available for captured-page inspection.');const registered=await installation();await api('/browser/site-grants','POST',{installationId:registered.installationId,origin,granted:Boolean(message.granted)});return {ok:true};}
+      if(message.type==='grant_site'){const origin=String(message.origin);if(origin!==config.captureOrigin)throw new Error('Only the controlled demo origin is available for captured-page inspection.');const registered=await installation();await api('/browser/site-grants','POST',{installationId:registered.installationId,origin,granted:Boolean(message.granted)});return {ok:true};}
       if(message.type==='check_page'){
         const caseId=message.caseId===undefined?undefined:IdSchema.parse(message.caseId),tabId=Number(message.tabId);
-        const tab=await browser.tabs.get(tabId);if(!tab.url)throw new Error('Open the controlled rental page first.');
+        const tab=await browser.tabs.get(tabId);if(!tab.url)throw new Error('Open a controlled demo page first.');
         const pageUrl=new URL(tab.url),origin=pageUrl.origin;
         const explicit=(await browser.storage.local.get('allowedSiteOrigins')).allowedSiteOrigins;
-        if(origin!==config.captureOrigin||pageUrl.pathname!==config.capturePath||!Array.isArray(explicit)||!explicit.includes(origin)||!await browser.permissions.contains({origins:[`${origin}/*`]}))throw new Error('Grant the controlled rental site before checking it.');
+        if(origin!==config.captureOrigin||!config.capturePaths.includes(pageUrl.pathname)||!Array.isArray(explicit)||!explicit.includes(origin)||!await browser.permissions.contains({origins:[`${origin}/*`]}))throw new Error('Grant the controlled demo site before checking this page.');
         const registered=await installation();
         await api('/browser/site-grants','POST',{installationId:registered.installationId,origin,granted:true});
         let response;try{response=await browser.tabs.sendMessage(tabId,{type:'beforeyou:capture'});}catch{await browser.scripting.executeScript({target:{tabId},files:['/content-scripts/observe.js']});response=await browser.tabs.sendMessage(tabId,{type:'beforeyou:capture'});}

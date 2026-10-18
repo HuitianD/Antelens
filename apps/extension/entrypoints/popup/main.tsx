@@ -7,13 +7,13 @@ import {capturedPageUrl} from '../../src/capture-receipt';
 import './style.css';
 function Panel() {
  const [tab,setTab]=useState<{id?:number;url?:string;title?:string}>({});
- const [state,setState]=useState<PageState>({phase:'waiting',message:'Open the controlled rental page to check its captured content.'});
+ const [state,setState]=useState<PageState>({phase:'waiting',message:'Open a controlled demo page to check its captured content.'});
  const [allowed,setAllowed]=useState(false),[busy,setBusy]=useState(false),[signedIn,setSignedIn]=useState(config.mode==='demo'),[error,setError]=useState('');
  const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[caseId,setCaseId]=useState(''),[cases,setCases]=useState<{id:string;title:string}[]>([]);
  const [linkOpen,setLinkOpen]=useState(false);
  const origin=(()=>{try{return new URL(tab.url??'').origin;}catch{return '';}})();
  const supported=config.supportedOrigins.includes(origin);
- const captureSite=origin===config.captureOrigin&&new URL(tab.url??origin).pathname===config.capturePath;
+ const captureSite=origin===config.captureOrigin&&config.capturePaths.includes(new URL(tab.url??origin).pathname);
  async function command(message:Record<string,unknown>){const r=await browser.runtime.sendMessage(message);if(!r?.ok)throw new Error(r?.error||'The browser action could not complete.');return r;}
  async function loadCases(){try{const result=await command({type:'email_cases'});setCases(result.cases);}catch(e){setError((e as Error).message);}}
  async function refresh(id=tab.id){if(id===undefined)return;try{const r=await command({type:'refresh',tabId:id});setState(r.state);setError('');}catch(e){const message=(e as Error).message;setError(message);if(/sign in/i.test(message))setSignedIn(false);}}

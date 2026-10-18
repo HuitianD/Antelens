@@ -2,12 +2,15 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { BrowserSiteGrantInputSchema, ConnectionSummarySchema, PageCaptureInputSchema, redactCaptureText } from '@beforeyou/contracts';
 import type { PostgresRepository, RunConfiguration } from '@beforeyou/db';
 import { DomainError } from '@beforeyou/fixtures';
+import { CONTROLLED_CAPTURE_PATHS } from '@beforeyou/fixtures/capture-pages';
 
 export function assertCaptureScope(pageUrl:string,env=process.env){
  const expected=env.CAPTURE_ALLOWED_ORIGIN;
  if(!expected)throw new DomainError('CONFIG_MISSING','The controlled capture site is not configured.',503);
  const url=new URL(pageUrl);
- if(url.origin!==expected||url.pathname!==(env.CAPTURE_ALLOWED_PATH||'/fixtures/SC-01')||url.search||url.hash||url.username||url.password)throw new DomainError('TARGET_BLOCKED','Only the explicitly configured controlled rental page can be captured.',403);
+ // Exact controlled demo pages only; CAPTURE_ALLOWED_PATH can add one further configured path on the same origin.
+ const allowed=new Set<string>([...CONTROLLED_CAPTURE_PATHS,...(env.CAPTURE_ALLOWED_PATH?[env.CAPTURE_ALLOWED_PATH]:[])]);
+ if(url.origin!==expected||!allowed.has(url.pathname)||url.search||url.hash||url.username||url.password)throw new DomainError('TARGET_BLOCKED','Only the controlled demo pages can be captured.',403);
 }
 export function assertOfflineProviders(env=process.env){const missing=['DAYTONA_API_KEY','DAYTONA_SNAPSHOT','FACTORY_API_KEY','ANTHROPIC_API_KEY','CLAUDE_MODEL_ID'].filter(key=>!env[key]?.trim());if(missing.length)throw new DomainError('CONFIG_MISSING','Captured-page inspection requires configured Daytona and Claude providers. It cannot use a local fallback.',503);}
 
