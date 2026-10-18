@@ -14,6 +14,7 @@ import { ActivityList,ErrorState,QuietMessageRow,SearchBox,time } from './presen
 import { CaseDetailPanel,MessageDetailPanel } from './case-detail';
 import { Connections } from './connections';
 import { AuthGate } from './auth-gate';
+import { SidebarMagnifier } from './sidebar-magnifier';
 type View='overview'|'messages'|'activity'|'connections';
 const views:Record<View,string>={overview:'Overview',messages:'All messages',activity:'Activity',connections:'Connections'};
 const navIcons={overview:Inbox,messages:Mail,activity:Clock3,connections:Settings2};
@@ -65,7 +66,7 @@ function Workspace(){
  return <><a className="skip-link" href="#main">Skip to workspace</a><div className={`app${hasDetail?' has-detail':''}`}>
  <aside className="sidebar" aria-label="Workspace navigation"><a href="/" className="brand" onClick={e=>{e.preventDefault();navigate('overview')}}><span className="brand-mark"><Search size={15} strokeWidth={2.25}/></span><span className="wordmark">Before<i>You</i></span></a>
  <nav className="nav">{(Object.keys(views) as View[]).map(v=>{const Icon=navIcons[v];return <div key={v} className="nav-item"><button onClick={()=>navigate(v)} className={`nav-btn ${view===v?'active':''}`} aria-current={view===v?'page':undefined} aria-label={views[v]}><Icon size={16}/><span className="nav-label">{views[v]}</span>{v==='overview'&&snapshot&&attention>0&&<span className="nav-count" aria-hidden="true">{attention}</span>}</button>{v==='overview'&&view==='overview'&&<GroupTabs className="nav-groups" group={verdict} counts={counts} onGroup={g=>{setVerdict(g)}}/>}</div>})}</nav>
- <div className="sidebar-bottom"><span className="mode-label"><span className={`dot ${updating?'':'offline'}`}/>{isDemo?'Demo data':'Live workspace'}</span><div className="profile"><span className="avatar">{isDemo?'D':'Y'}</span><div><b>{isDemo?'Demo workspace':'Your workspace'}</b><small>{isDemo?'Local, synthetic data':'Private workspace'}</small></div>{!isDemo&&<button className="icon-btn profile-signout" aria-label="Log out" onClick={()=>{const client=auth();if(!client)return;void client.auth.signOut().then(result=>{if(result.error)setError(result.error.message)})}}><LogOut size={15}/></button>}</div></div></aside>
+ <SidebarMagnifier/><div className="sidebar-bottom"><span className="mode-label"><span className={`dot ${updating?'':'offline'}`}/>{isDemo?'Demo data':'Live workspace'}</span><div className="profile"><span className="avatar">{isDemo?'D':'Y'}</span><div><b>{isDemo?'Demo workspace':'Your workspace'}</b><small>{isDemo?'Local, synthetic data':'Private workspace'}</small></div>{!isDemo&&<button className="icon-btn profile-signout" aria-label="Log out" onClick={()=>{const client=auth();if(!client)return;void client.auth.signOut().then(result=>{if(result.error)setError(result.error.message)})}}><LogOut size={15}/></button>}</div></div></aside>
  <main className={`main ${split?'split':'single'}`} id="main">
  {!snapshot&&!error&&<div className="workspace-loading" role="status" aria-label="Loading workspace">{[1,2,3,4,5].map(n=><div key={n} className="row-skeleton"/>)}</div>}
  {!snapshot&&error&&<div className="single-pane">{header}<div className="single-inner">{banners}</div></div>}
