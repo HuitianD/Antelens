@@ -139,7 +139,10 @@ export const ActivityEventSchema = z.discriminatedUnion('type', [
 export const EventTypeSchema = z.enum(['source.received', 'source.updated', 'case.created', 'case.updated', 'case.history_updated', 'investigation.queued', 'investigation.started', 'investigation.step_completed', 'investigation.limited', 'investigation.failed', 'investigation.cancelled', 'assessment.published', 'review.updated', 'connection.updated', 'resync.required']);
 export const DashboardCountsSchema = z.strictObject({ pause_here: z.number().int().nonnegative(), confirm_first: z.number().int().nonnegative(), no_issues_found: z.number().int().nonnegative(), checking: z.number().int().nonnegative(), limited: z.number().int().nonnegative(), stale: z.number().int().nonnegative() });
 export const DashboardSnapshotSchema = z.strictObject({ mode: AppModeSchema, counts: DashboardCountsSchema, cases: PageSchema(CaseSummarySchema), activity: z.array(ActivityEventSchema), connections: z.array(ConnectionSummarySchema) });
-export const CaseDetailSchema = z.strictObject({ case: CaseSummarySchema, sources: z.array(SourceEventSchema), currentAssessment: AssessmentSchema.nullable(), activeRun: InvestigationRunSchema.nullable(), latestRun: InvestigationRunSchema.nullable(), journey: z.array(JourneyStepSchema), evidence: z.array(EvidenceSchema), historyCursor: z.string().nullable() });
+export const CaseDetailSchema = z.strictObject({ case: CaseSummarySchema, sources: z.array(SourceEventSchema), currentAssessment: AssessmentSchema.nullable(), activeRun: InvestigationRunSchema.nullable(), latestRun: InvestigationRunSchema.nullable(), journey: z.array(JourneyStepSchema), evidence: z.array(EvidenceSchema), historyCursor: z.string().nullable(),
+  // Existing ingestion metadata only. A saved link does not imply that its contents were inspected.
+  sourceReferences: z.array(z.strictObject({ sourceEventId: IdSchema, originalUrl: z.url().nullable(), links: z.array(z.url()) })).optional(),
+});
 export const MessageSummarySchema = SourceEventSchema.extend({ caseIds: Ids });
 export const MessageDetailSchema = z.strictObject({ source: SourceEventSchema, content: z.string().max(100000), caseIds: Ids, originalUrl: z.url().nullable() });
 export const RunDetailSchema = z.strictObject({ run: InvestigationRunSchema, steps: z.array(JourneyStepSchema) });

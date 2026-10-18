@@ -125,14 +125,14 @@ export class PostgresRepository {
     return this.transaction(ownerId, async (client) => {
       const record = await client.query('SELECT dto FROM cases WHERE owner_id=$1 AND id=$2', [ownerId, caseId]); if (!record.rows[0]) throw notFound();
       const item = CaseSummarySchema.parse(record.rows[0].dto);
-      const sources = await client.query('SELECT se.dto FROM source_events se JOIN case_sources cs ON cs.source_event_id=se.id AND cs.owner_id=se.owner_id WHERE cs.owner_id=$1 AND cs.case_id=$2 ORDER BY se.created_at,se.id', [ownerId, caseId]);
+      const sources = await client.query('SELECT se.dto,se.original_url,se.links FROM source_events se JOIN case_sources cs ON cs.source_event_id=se.id AND cs.owner_id=se.owner_id WHERE cs.owner_id=$1 AND cs.case_id=$2 ORDER BY se.created_at,se.id', [ownerId, caseId]);
       const runs = await client.query('SELECT dto FROM investigation_runs WHERE owner_id=$1 AND case_id=$2 ORDER BY created_at DESC,id DESC', [ownerId, caseId]);
       const parsedRuns = runs.rows.map((row) => InvestigationRunSchema.parse(row.dto)); const activeRun = parsedRuns.find((run) => run.id === item.activeRunId) ?? null;
       const latestRun = activeRun ?? parsedRuns[0] ?? null;
       const runId = activeRun?.id ?? item.currentAssessment?.runId ?? latestRun?.id;
       const steps = runId ? await client.query('SELECT dto FROM investigation_steps WHERE owner_id=$1 AND run_id=$2 ORDER BY step_index', [ownerId, runId]) : { rows: [] };
       const evidence = await client.query('SELECT dto FROM evidence WHERE owner_id=$1 AND case_id=$2 ORDER BY created_at,id', [ownerId, caseId]);
-      return { case: item, sources: sources.rows.map((row) => SourceEventSchema.parse(row.dto)), currentAssessment: item.currentAssessment, activeRun, latestRun, journey: steps.rows.map((row) => JourneyStepSchema.parse(row.dto)), evidence: evidence.rows.map((row) => EvidenceSchema.parse(row.dto)), historyCursor: null };
+      return { case: item, sources: sources.rows.map((row) => SourceEventSchema.parse(row.dto)), sourceReferences: sources.rows.map(row => ({ sourceEventId: row.dto.id, originalUrl: row.original_url, links: row.links })), currentAssessment: item.currentAssessment, activeRun, latestRun, journey: steps.rows.map((row) => JourneyStepSchema.parse(row.dto)), evidence: evidence.rows.map((row) => EvidenceSchema.parse(row.dto)), historyCursor: null };
     }, true);
   }
   async history(ownerId: string, caseId: string, cursor?: string, limit = 25): Promise<Page<Assessment>> {

@@ -32,6 +32,8 @@ The UI refinement preview runs at **http://127.0.0.1:3002**, with its isolated d
 
 All visible demo findings are `synthetic/simulated`. The browser-panel preview does not imply an installed extension. Screenshots are in [docs/screenshots](docs/screenshots). Local UI and API verification do not prove the live integrations.
 
+Evidence presentation now follows the saved sources: email-only excerpts, standalone captured pages, or email/page comparison. Historical comparisons use their own run and capture, screenshots retain enlargement, and detailed scope is grouped in one disclosure. See [evidence presentation checks](docs/evidence-presentation-review.md).
+
 ## Implementation status
 
 | Capability | Status |

@@ -194,6 +194,18 @@ details[open]>summary>svg:last-child{transform:rotate(180deg)}
 .comparison-column h4{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:7px;color:var(--ink-2);margin-bottom:12px}
 .comparison-column h4 svg{color:var(--muted)}
 .page-column{background:#f9fafb;border-left:1px solid var(--line)}
+.evidence-comparison.single-source{grid-template-columns:1fr}
+.single-source .page-column{border:0}
+.detail-section-heading .evidence-scope{border:1px solid var(--line);border-radius:5px;padding:3px 7px;white-space:nowrap;color:var(--muted)}
+.linked-page-status{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:12px;color:var(--muted);margin:0 0 12px}
+.quote-source a,.linked-page-status a,.source-original-link a,.screenshot-record figcaption a{display:inline-flex;align-items:center;gap:5px;color:var(--blue);overflow-wrap:anywhere}
+.source-original-link:has(a){font-size:12px;margin-top:8px}
+.inspection-details{margin-top:12px;font-size:12.5px;color:var(--muted);line-height:1.6}
+.inspection-details>summary{display:flex;align-items:center;justify-content:space-between;color:var(--ink-2)}
+.inspection-details h4{font-size:12.5px;color:var(--ink-2);margin:12px 0 5px}
+.inspection-details p{margin-top:10px}
+.inspection-details ul{padding-left:18px}
+.inspection-details li+li{margin-top:6px}
 @container (max-width:560px){.evidence-comparison{grid-template-columns:1fr}.page-column{border-left:0;border-top:1px solid var(--line)}.message-head .row-time{flex-basis:100%;padding-left:36px}}
 .quote-record{scroll-margin-top:16px;min-width:0}
 .quote-record:focus{outline:none}

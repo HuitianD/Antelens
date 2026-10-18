@@ -343,7 +343,7 @@ Validate tokens on the API regardless of frontend guards. Permit only configured
 | `GET /v1/system/capabilities` | Auth | App mode and provider capability states: ready/missing_configuration/needs_authorization/unavailable; sanitized reason |
 | `GET /v1/dashboard` | Auth | Verdict counts for current assessments, checking/limited/stale counts, first case page, recent activity, connection summaries; consistent snapshot event cursor |
 | `GET /v1/cases` | `verdict?`, `impact?`, `reviewStatus?`, `freshness?`, `q?`, `cursor?`, `limit?` | `Page<CaseSummary>`; filters combine with AND; search owner-scoped title/finding/source metadata |
-| `GET /v1/cases/:id` | Auth | Case summary, ordered sources, current assessment, active/latest run, observed journey, evidence, and history cursor |
+| `GET /v1/cases/:id` | Auth | Case summary, ordered sources, current assessment, active/latest run, observed journey, evidence, and history cursor. Optional `sourceReferences: {sourceEventId, originalUrl, links}[]` projects existing owner-scoped ingestion metadata; saved links are not page observations and trigger no fetching. |
 | `GET /v1/cases/:id/assessments` | Cursor/limit | Assessment history, newest first |
 | `GET /v1/messages` | `disposition?`, `source?`, `q?`, cursor/limit | Source summaries and associated case IDs; includes no_action messages |
 | `GET /v1/messages/:id` | Auth | SourceEvent, sanitized original content, associated case IDs, and owner-authorized original-source link; also supports browser-source lookup after asynchronous triage |

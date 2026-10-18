@@ -48,6 +48,8 @@ test('PostgreSQL migrations and repository preserve durable investigation invari
     assert.equal((await repository.listCases(owner)).items.length, 1);
     const selected = await query('SELECT links FROM source_events WHERE id=$1', [input.id]);
     assert.deepEqual((selected.rows[0] as { links: string[] }).links, ['https://fixture.example/checkout']);
+    const detail = await repository.caseDetail(owner, caseId);
+    assert.deepEqual(detail.sourceReferences, [{ sourceEventId: input.id, originalUrl: null, links: ['https://fixture.example/checkout'] }]);
     const queued = await query("SELECT topic,count(*)::int AS count FROM outbox_events WHERE topic IN ('triage','investigate') GROUP BY topic");
     assert.deepEqual(queued.rows.map((row: any) => [row.topic, row.count]).sort(), [['investigate', 1], ['triage', 1]]);
   });

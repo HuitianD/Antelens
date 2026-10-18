@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { AssessmentSchema, CaseDetailSchema, EvidenceSchema, InvestigationRunSchema } from '@beforeyou/contracts';
-import { comparisonEvidence, demoScreenshot } from './evidence';
+import { comparisonEvidence, demoScreenshot, sameCapture, sourceEvidence } from './evidence';
 
 const caseId = randomUUID(), currentRun = randomUUID(), otherRun = randomUUID();
 const date = '2026-10-18T12:00:00.000Z';
@@ -56,4 +56,41 @@ test('a screenshot-only citation resolves exact persisted text from its capture,
  assert.deepEqual(comparison.cited,[screenshot]);
  detail.evidence=[wrongCapture,wrongRun,screenshot];
  assert.equal(comparisonEvidence(detail).page,screenshot);assert.equal(comparisonEvidence(detail).companionText,false);
+});
+
+test('historical evidence cannot use a newer run, another case, or generated scope text', () => {
+  const detail = snapshot(), oldPage = record('page_excerpt', otherRun, 'Earlier fee: $29.'), newPage = record('page_excerpt', currentRun, 'Current fee: $39.');
+  const assessment = (runId: string, version: number, ids: string[]) => AssessmentSchema.parse({ id: randomUUID(), caseId, runId, version, sourceRevision: 1, verdict: 'confirm_first', impacts: ['money'], finding: { headline: 'Review the saved fee.', consequence: null, evidenceIds: ids }, nextAction: { kind: 'review_steps', label: 'Review steps' }, checkedScope: ['Generated scope is not a quotation.'], limitations: [], changeSummary: null, supersedesAssessmentId: null, createdAt: date, provenance });
+  detail.currentAssessment = assessment(currentRun, 2, [newPage.id]);
+  const history = assessment(otherRun, 1, [oldPage.id]);
+  detail.evidence = [newPage, oldPage];
+  assert.equal(comparisonEvidence(detail, history).page?.excerpt, 'Earlier fee: $29.');
+  history.finding.evidenceIds.push(newPage.id);
+  assert.deepEqual(comparisonEvidence(detail, history).cited, [oldPage]);
+  assert.equal(comparisonEvidence(detail, history).missingCitations, true);
+  detail.evidence = [{ ...oldPage, caseId: randomUUID() }];
+  assert.equal(comparisonEvidence(detail, history).page, undefined);
+});
+
+test('source presentation only labels saved email links; browser checks have no email comparison', () => {
+  const detail = snapshot();
+  assert.equal(sourceEvidence(detail).scope, 'Email only');
+  assert.equal(sourceEvidence(detail).hasPage, false);
+  assert.deepEqual(sourceEvidence(detail).uninspectedLinks, []);
+  const sourceId = randomUUID();
+  detail.sources = [{ id: sourceId, kind: 'gmail' } as any];
+  detail.sourceReferences = [{ sourceEventId: sourceId, originalUrl: 'https://mail.google.com/mail/u/0/#inbox/id', links: ['https://rental.example.test/apply', 'javascript:alert(1)'] }];
+  assert.deepEqual(sourceEvidence(detail).uninspectedLinks, ['https://rental.example.test/apply']);
+  detail.case.sourceKinds = ['browser']; detail.sources = [];
+  assert.equal(sourceEvidence(detail).email, false);
+  assert.equal(sourceEvidence(detail).hasPage, true);
+});
+
+test('matching screenshots requires capture identity or the same recorded step, not merely a URL', () => {
+  const page = record('page_excerpt'), screenshot = { ...record('screenshot'), excerpt: null };
+  assert.equal(sameCapture(page, screenshot), false);
+  page.stepId = randomUUID(); screenshot.stepId = page.stepId;
+  assert.equal(sameCapture(page, screenshot), true);
+  screenshot.sourceEventId = randomUUID();
+  assert.equal(sameCapture(page, screenshot), false);
 });

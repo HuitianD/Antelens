@@ -6,7 +6,7 @@ import { AcceptedRunSchema, AssessmentSchema, CaseDetailSchema, MessageDetailSch
 import { isDemo, post, request } from '../lib/api';
 import { reconcileAssessmentHistory, reconcileCaseDetail } from '../lib/case-state';
 import { Badge, DispositionTag, ErrorState, impactLabels, StateBadge, time, unassessedNote } from './presentation';
-import { EvidenceComparison, EvidenceImage, QuoteRecord } from './evidence-viewer';
+import { EvidenceComparison, EvidenceImage, QuoteRecord, SourceLink } from './evidence-viewer';
 import { InvestigationProgress } from './investigation-progress';
 
 /** Shared frame for the right-hand panel. On narrow screens it covers the list and the back control returns to it. */
@@ -33,9 +33,9 @@ function reveal(id: string, open = false) {
 }
 
 export function CaseDetailPanel({ id, crumb, subject, revision, onClose, onRefresh }: { id: string; crumb: string; subject?: string; revision: number; onClose: () => void; onRefresh: () => void }) {
-  const [detail, setDetail] = useState<CaseDetail | null>(null), [history, setHistory] = useState<Assessment[]>([]), [error, setError] = useState(''), [busy, setBusy] = useState(false), [browser, setBrowser] = useState(false), [note, setNote] = useState(''), [notice, setNotice] = useState('');
+  const [detail, setDetail] = useState<CaseDetail | null>(null), [history, setHistory] = useState<Assessment[]>([]), [error, setError] = useState(''), [busy, setBusy] = useState(false), [browser, setBrowser] = useState(false), [note, setNote] = useState(''), [notice, setNotice] = useState(''), [openHistoryEvidence, setOpenHistoryEvidence] = useState<Record<string, boolean>>({}), [archiveOpen, setArchiveOpen] = useState(false);
   const viewed = useRef(''), detailSnapshot = useRef<CaseDetail | null>(null);
-  useEffect(() => { detailSnapshot.current = null; setDetail(null); setHistory([]); setError(''); setBrowser(false); setNote(''); setNotice(''); }, [id]);
+  useEffect(() => { detailSnapshot.current = null; setDetail(null); setHistory([]); setError(''); setBrowser(false); setNote(''); setNotice(''); setOpenHistoryEvidence({}); setArchiveOpen(false); }, [id]);
   useEffect(() => {
     let valid = true;
     void Promise.all([request(`/cases/${id}`, CaseDetailSchema), request(`/cases/${id}/assessments`, PageSchema(AssessmentSchema))]).then(([d, h]) => {
@@ -48,8 +48,10 @@ export function CaseDetailPanel({ id, crumb, subject, revision, onClose, onRefre
     return () => { valid = false; };
   }, [id, revision, onRefresh]);
   const a = detail?.currentAssessment, run = detail?.activeRun || detail?.latestRun || null;
-  const limitations = [...new Map([...(a?.limitations ?? []), ...(run?.limitations ?? [])].map(l => [`${l.code}:${l.message}`, l])).values()];
   const original = detail ? [...detail.sources].sort((x, y) => Date.parse(x.occurredAt) - Date.parse(y.occurredAt)) : [];
+  const emailSources = original.filter(s => s.kind === 'gmail');
+  const hasEmail = emailSources.length > 0 || Boolean(detail?.case.sourceKinds.includes('gmail'));
+  const visibleSources = emailSources.length ? emailSources : original;
   async function recheck(reason: 'user_recheck' | 'verification_requested') {
     setBusy(true); setError('');
     try { await post(`/cases/${id}/rechecks`, AcceptedRunSchema, { reason, ...(note.trim() ? { note: note.trim() } : {}) }); setNotice('Recheck queued. Your note is saved as a statement to review.'); onRefresh(); }
@@ -85,22 +87,22 @@ export function CaseDetailPanel({ id, crumb, subject, revision, onClose, onRefre
       {notice && <p className="notice" role="status">{notice}</p>}
       {browser ? <><div className="browser-shell"><div className="browser-chrome"><Globe2 size={14} />Controlled example, simulated panel</div><div className="browser-page"><div className="extension-card"><div className="extension-brand">Before<i>You</i></div><StateBadge item={detail.case} /><h3>{a?.finding.headline || 'Investigation pending'}</h3>{a?.finding.consequence && <p>{a.finding.consequence}</p>}<button className="primary-btn" onClick={() => setBrowser(false)}>View the evidence <ArrowRight size={15} /></button></div></div></div><p className="scope">Demo preview of this case’s saved state.</p></> : <>
         <section className="detail-section original-request" id="original" tabIndex={-1} aria-labelledby="original-title">
-          <div className="detail-section-heading"><h3 id="original-title">Original message</h3><span>{original.length} {original.length === 1 ? 'source' : 'sources'}</span></div>
-          {original.length ? original.map(s => <article className="message-box" key={s.id}>
-            <div className="message-head"><span className="row-icon" aria-hidden="true">{s.kind === 'gmail' ? <Mail size={14} /> : <Globe2 size={14} />}</span><div><strong>{s.title}</strong><span className="from">{s.senderLabel || (s.kind === 'gmail' ? 'Gmail' : 'Browser page')}</span></div><span className="row-time"><span className="row-time-label">Received</span> <time dateTime={s.occurredAt}>{time(s.occurredAt)}</time></span></div>
-            <p>{s.previewText}</p>
-          </article>) : <p className="evidence-missing">No source message is linked to this case.</p>}
+          <div className="detail-section-heading"><h3 id="original-title">{hasEmail ? 'Original email' : 'Captured page'}</h3><span>{visibleSources.length} {visibleSources.length === 1 ? 'source' : 'sources'}</span></div>
+          {visibleSources.length ? visibleSources.map(s => <article className="message-box" key={s.id}>
+            <div className="message-head"><span className="row-icon" aria-hidden="true">{s.kind === 'gmail' ? <Mail size={14} /> : <Globe2 size={14} />}</span><div><strong>{s.title}</strong><span className="from">{s.senderLabel || (s.kind === 'gmail' ? 'Gmail' : 'Browser page')}</span></div><span className="row-time"><span className="row-time-label">{s.kind === 'gmail' ? 'Received' : 'Captured'}</span> <time dateTime={s.occurredAt}>{time(s.occurredAt)}</time></span></div>
+            {s.kind === 'gmail' && <p>{s.previewText}</p>}
+            <div className="source-original-link">{detail.sourceReferences?.find(ref => ref.sourceEventId === s.id)?.originalUrl && <SourceLink url={detail.sourceReferences.find(ref => ref.sourceEventId === s.id)?.originalUrl}>Open original {s.kind === 'gmail' ? 'email' : 'page'}</SourceLink>}</div>
+          </article>) : <p className="evidence-missing">No original source is available.</p>}
         </section>
         <EvidenceComparison detail={detail} />
         <InvestigationProgress run={run} steps={detail.journey} />
-        {(limitations.length > 0 || run?.error) && <section className="detail-section limitations-section"><h3>What could not be checked</h3>{limitations.map((l, i) => <div className="limitation" key={i}><Eye size={15} /><p>{l.message}</p></div>)}{run?.error && <ErrorState title="Investigation stopped" message={run.error.message} label="Investigation error" />}{!detail.activeRun && <p className="scope">Review the original request through a channel you trust. You can recheck when access is available.</p>}</section>}
-        {a && <section className="detail-section checked-scope"><h3>Checked scope</h3><ul>{a.checkedScope.map((s, i) => <li key={i}><Eye size={14} /><span>{s}</span></li>)}</ul></section>}
-        <section className="detail-section detail-action" id="verification"><h3>Your next step</h3><p>{!a ? 'Some steps remain unchecked. Review the request before continuing.' : a.verdict === 'no_issues_found' ? 'Review the checked scope. Later steps are not covered by this assessment.' : 'Confirm the unresolved request through a channel you already trust.'}</p>
+        {run?.error && <ErrorState title="Investigation stopped" message={run.error.message} label="Investigation error" />}
+        <section className="detail-section detail-action" id="verification"><h3>Your next step</h3>
           {a && <button type="button" className="soft-btn" disabled={busy || running} onClick={() => void recheck('user_recheck')}><RefreshCw size={14} />{recheckLabel}</button>}
           <details className="verification-note" id="verification-note" tabIndex={-1}><summary>Add a verification note <ChevronDown size={15} /></summary><label className="field-label" htmlFor="verification-note-text">What did you find?</label><textarea id="verification-note-text" maxLength={4000} placeholder="Record what you confirmed and where…" value={note} onChange={e => setNote(e.target.value)} /><button type="button" className="soft-btn" disabled={busy || running} onClick={() => void recheck('verification_requested')}>Save note and request recheck</button></details>
         </section>
-        <section className="detail-section assessment-history"><div className="detail-section-heading"><h3><History size={15} />Assessment history</h3><span>{history.length} {history.length === 1 ? 'version' : 'versions'}</span></div>{history.length ? history.map(h => <details className="history-item" key={h.id}><summary><span className="history-version">Version {h.version}</span><time dateTime={h.createdAt}>{time(h.createdAt)}</time><span className={`history-status ${h.id === a?.id ? 'current' : ''}`}>{h.id === a?.id ? 'Current assessment' : 'Earlier assessment'}</span><ChevronDown size={15} /></summary><div className="history-content"><Badge verdict={h.verdict} /><h4>{h.finding.headline}</h4><p>{h.changeSummary || 'Initial assessment'}</p><details className="history-evidence"><summary>Evidence cited in this version</summary>{h.finding.evidenceIds.map(eid => { const e = detail.evidence.find(record => record.id === eid); return e ? <QuoteRecord key={eid} evidence={e} anchor={false} /> : <p className="evidence-missing" key={eid}>This evidence record is not available in the current view.</p>; })}</details></div></details>) : <p className="evidence-missing">No assessment has been published. Investigation events appear above.</p>}</section>
-        <details className="all-evidence"><summary>All evidence records <span>{detail.evidence.length}</span><ChevronDown size={16} /></summary>{detail.evidence.map(e => <div key={e.id}><QuoteRecord evidence={e} anchor={false} />{e.kind === 'screenshot' && e.artifactId && <EvidenceImage evidence={e} />}</div>)}</details>
+        <section className="detail-section assessment-history"><div className="detail-section-heading"><h3><History size={15} />Assessment history</h3><span>{history.length} {history.length === 1 ? 'version' : 'versions'}</span></div>{history.length ? history.map(h => <details className="history-item" key={h.id}><summary><span className="history-version">Version {h.version}</span><time dateTime={h.createdAt}>{time(h.createdAt)}</time><span className={`history-status ${h.id === a?.id ? 'current' : ''}`}>{h.id === a?.id ? 'Current assessment' : 'Earlier assessment'}</span><ChevronDown size={15} /></summary><div className="history-content"><Badge verdict={h.verdict} /><h4>{h.finding.headline}</h4><p>{h.changeSummary || 'Initial assessment'}</p><details className="history-evidence" onToggle={event => { const open = event.currentTarget.open; setOpenHistoryEvidence(previous => ({ ...previous, [h.id]: open })); }}><summary>Evidence cited in this version</summary>{openHistoryEvidence[h.id] && <EvidenceComparison detail={detail} assessment={h} historical />}</details></div></details>) : <p className="evidence-missing">No assessment has been published. Investigation events appear above.</p>}</section>
+        <details className="all-evidence" onToggle={event => setArchiveOpen(event.currentTarget.open)}><summary>All evidence records <span>{detail.evidence.length}</span><ChevronDown size={16} /></summary>{archiveOpen && detail.evidence.map(e => <div key={e.id}><QuoteRecord evidence={e} anchor={false} />{e.kind === 'screenshot' && e.artifactId && <EvidenceImage evidence={e} />}</div>)}</details>
       </>}
     </>}
   </DetailFrame>;

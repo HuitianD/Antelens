@@ -20,10 +20,10 @@ test('cited message/page comparison, accessible screenshot zoom and isolated dem
   const detail = (await (await request.get(`${apiOrigin}/v1/cases/${id}`)).json()).data;
   const cited = detail.evidence.filter((e: any) => detail.currentAssessment.finding.evidenceIds.includes(e.id));
   await expect(page.locator('.message-column blockquote').first()).toHaveText(cited.find((e: any) => e.kind === 'message_excerpt').excerpt);
-  await expect(page.locator('.page-column blockquote')).toHaveText(cited.find((e: any) => e.kind === 'page_excerpt').excerpt);
+  await expect(page.locator('#comparison .page-column blockquote')).toHaveText(cited.find((e: any) => e.kind === 'page_excerpt').excerpt);
   await expect(page.getByRole('heading', { name: 'Message says' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Page shows' })).toBeVisible();
-  const image = page.locator('.screenshot-preview img');
+  const image = page.locator('#comparison .screenshot-preview img');
   await expect(image).toHaveJSProperty('naturalWidth', 2000);
   await page.screenshot({animations:'disabled', path: 'docs/screenshots/ui-evidence-desktop.png' });
   await page.getByRole('button', { name: 'Enlarge screenshot', exact: true }).click();
@@ -49,7 +49,7 @@ test('mobile evidence fits the viewport and a failed screenshot can be reloaded'
   await page.screenshot({animations:'disabled', path: 'docs/screenshots/ui-screenshot-error-mobile.png' });
   await page.unroute('**/demo/rental-checkout.png');
   await page.getByRole('button', { name: 'Reload image', exact: true }).click();
-  await expect(page.locator('.screenshot-preview img')).toHaveJSProperty('naturalWidth', 2000);
+  await expect(page.locator('#comparison .screenshot-preview img')).toHaveJSProperty('naturalWidth', 2000);
   expect(await page.locator('.detail-scroll').evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy();
   await page.screenshot({animations:'disabled', path: 'docs/screenshots/ui-page-evidence-mobile.png' });
   await page.locator('.detail-scroll').evaluate(el => {el.scrollTop=0;});
@@ -81,6 +81,7 @@ test('limited investigation has recorded stages and no favorable judgment', asyn
   await page.locator('.case-row', { hasText: 'student account' }).click();
   const dialog = page.getByRole('region', { name: 'Case detail', exact: true });
   await expect(dialog.getByText('No assessment yet', { exact: true })).toBeVisible();
+  await dialog.locator('#comparison .inspection-details > summary').click();
   await expect(dialog.getByRole('heading', { name: 'What could not be checked' })).toBeVisible();
   await expect(dialog.getByText('No issues found', { exact: true })).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: 'Recheck request', exact: true })).toBeEnabled();
@@ -104,7 +105,7 @@ test('list rows name the original message, ordinary mail stays in No action need
   await row.click();
   const detail = page.getByRole('region', { name: 'Case detail', exact: true });
   await expect(detail.locator('.primary-btn')).toHaveCount(1);
-  await expect(detail.getByRole('heading', { name: 'Original message' })).toBeVisible();
+  await expect(detail.getByRole('heading', { name: 'Original email' })).toBeVisible();
   await detail.getByRole('button', { name: 'Review charges', exact: true }).click();
   await expect(page.locator(`#evidence-${rental.currentAssessment.nextAction.evidenceId}`)).toBeInViewport();
   await page.keyboard.press('Escape');
