@@ -45,7 +45,7 @@ export function StaticMagnifier() {
  * Decorative magnifying glass for the sidebar's free space. It is hidden from assistive technology,
  * never focusable, pauses when not visible, and stays still under reduced motion.
  */
-export function SidebarMagnifier() {
+export function SidebarMagnifier({ processing = false }: { processing?: boolean }) {
   const frame = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(0), [mode, setMode] = useState<'pending' | 'webgl' | 'static'>('pending');
   const [visible, setVisible] = useState(true), [reduced, setReduced] = useState(false), [ready, setReady] = useState(false);
@@ -75,7 +75,7 @@ export function SidebarMagnifier() {
   const fallback = <StaticMagnifier />;
   return <div ref={frame} className="sidebar-accent" aria-hidden="true">
     {size > 0 && mode !== 'pending' && <div className={`sidebar-accent-stage${ready || mode === 'static' ? ' ready' : ''}`} style={{ width: size, height: size }}>
-      {mode === 'static' ? fallback : <AccentBoundary fallback={fallback} onError={() => setMode('static')}><MagnifyingGlass3D active={visible} reduced={reduced} onReady={() => setReady(true)} onError={() => setMode('static')} /></AccentBoundary>}
+      {mode === 'static' ? fallback : <AccentBoundary fallback={fallback} onError={() => setMode('static')}><MagnifyingGlass3D active={visible} reduced={reduced} spinning={processing} onReady={() => setReady(true)} onError={() => setMode('static')} /></AccentBoundary>}
     </div>}
   </div>;
 }
