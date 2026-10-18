@@ -1,0 +1,137 @@
+/*
+ * Desktop-app finish over the base workspace styles: three related surfaces (silver navigation,
+ * soft list, white detail), graphite text, one blue for selection, primary actions and focus,
+ * and explicit hover, pressed, selected and focus states. Loaded after globals.css.
+ */
+
+/* Focus: one consistent ring everywhere. */
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.list-row:focus-visible,.nav-btn:focus-visible,.group-tab:focus-visible{outline-offset:-2px}
+
+/* Surfaces */
+.sidebar{background:var(--bg)}
+.main{border-color:#d3d8df;border-radius:var(--radius-lg);box-shadow:var(--shadow)}
+.list-pane{background:var(--list);border-right-color:var(--line-strong)}
+.pane-header{border-bottom-color:var(--line)}
+.list-pane .pane-header,.impact-filters,.list-filters,.mobile-groups{background:var(--list)}
+.detail-pane,.single-pane{background:var(--paper)}
+.detail-empty{background:var(--paper)}
+
+/* Navigation */
+.brand{color:var(--ink)}
+.brand:hover{background:var(--pressed)}
+.brand-mark{border-color:var(--line-strong);box-shadow:var(--shadow-control);color:var(--blue)}
+.nav{gap:2px}
+.nav-btn{color:var(--ink-2);font-weight:450}
+.nav-btn svg{color:var(--muted)}
+.nav-btn:hover{background:#dcdfe5}
+.nav-btn:active{background:#d2d6dd}
+.nav-btn.active{background:var(--paper);color:var(--ink);font-weight:600;box-shadow:0 0 0 1px #10182812,var(--shadow-control)}
+.nav-btn.active svg{color:var(--blue)}
+.nav-count{color:var(--muted);font-weight:500}
+.nav-groups{border-left-color:#c3c9d2}
+.group-tab{color:var(--ink-2)}
+.group-tab:hover{background:#dcdfe5;color:var(--ink)}
+.group-tab:active{background:#d2d6dd}
+.group-tab.active{background:var(--selected);color:var(--blue-dark);font-weight:600;box-shadow:none}
+.group-tab .count{color:var(--muted)}
+.group-tab.active .count{color:var(--blue-dark)}
+.mode-label{color:var(--ink-2)}
+.profile{border-top-color:var(--line-strong)}
+.profile small{color:var(--muted)}
+
+/* Header, search and filters */
+.pane-header h1{font-size:15px;font-weight:650;color:var(--ink)}
+.pane-count{color:var(--muted)}
+.search{border-color:var(--line-strong);box-shadow:var(--shadow-control)}
+.search:hover{border-color:#b9c0ca}
+.search:focus{border-color:var(--blue);box-shadow:var(--ring)}
+.search-wrap svg,.search-wrap kbd{color:var(--muted)}
+.icon-btn{color:var(--ink-2)}
+.icon-btn:hover{background:var(--hover);color:var(--ink)}
+.icon-btn:active{background:var(--pressed)}
+.chip{border-color:var(--line-strong);color:var(--ink-2);box-shadow:var(--shadow-control);font-weight:500}
+.chip:hover{background:#f0f2f5;border-color:#b9c0ca}
+.chip:active{background:var(--pressed)}
+.chip.active{background:var(--blue-pale);border-color:var(--blue);color:var(--blue-dark);box-shadow:none}
+select{border-color:var(--line-strong);box-shadow:var(--shadow-control)}
+select:hover{border-color:#b9c0ca}
+.select-label{color:var(--ink-2)}
+
+/* List rows: a tinted background and a solid indicator make the selection unmistakable. */
+.list-subhead{color:var(--ink-2);font-weight:600}
+.list-subhead span{color:var(--muted)}
+.list-row:hover{background:#eaecf0}
+.list-row:active{background:var(--pressed)}
+.list-row.selected{background:var(--selected);box-shadow:inset 0 0 0 1px #0b63d61f}
+.list-row.selected:before{left:3px;top:12px;bottom:12px;width:3px;background:var(--blue)}
+.row-icon{border-color:var(--line-strong);color:var(--ink-2)}
+.list-row.selected .row-icon{border-color:#a9c3ec;color:var(--blue)}
+.row-subject{color:var(--ink)}
+.row-sender{color:var(--muted)}
+.row-finding{color:var(--ink-2)}
+.row-preview{color:var(--muted)}
+.row-time,.row-time-label{color:var(--muted)}
+.unassessed .row-finding{color:var(--muted)}
+
+/* Buttons */
+.primary-btn{background:var(--blue);box-shadow:inset 0 1px 0 #ffffff26,0 1px 2px #0b3b8040,0 0 0 1px #0852b3}
+.primary-btn:hover:not(:disabled){background:var(--blue-dark)}
+.primary-btn:active:not(:disabled){background:#07479b;box-shadow:inset 0 1px 2px #0000002e,0 0 0 1px #07479b}
+.soft-btn{border-color:var(--line-strong);color:var(--ink);box-shadow:var(--shadow-control);font-weight:500}
+.soft-btn:hover:not(:disabled){background:#f3f4f6;border-color:#b9c0ca}
+.soft-btn:active:not(:disabled){background:var(--pressed);box-shadow:none}
+.soft-btn[aria-pressed=true]{background:var(--blue-pale);border-color:var(--blue);color:var(--blue-dark)}
+.text-btn{color:var(--blue);font-weight:500}
+
+/* Detail: readable labels, fewer boxes. Content (message, evidence) keeps its solid frame. */
+.detail-bar{border-bottom-color:var(--line)}
+.detail-crumb{color:var(--muted)}
+.detail-crumb>span[aria-hidden]{color:var(--faint)}
+.detail-finding h2{font-weight:650;letter-spacing:-.35px}
+.finding-consequence{color:var(--ink-2)}
+.detail-subtitle{color:var(--muted)}
+.primary-row{border-bottom-color:var(--line)}
+.primary-note{color:var(--muted)}
+.detail-section h3{font-weight:650}
+.detail-section-heading>span{color:var(--muted)}
+.message-box,.evidence-comparison{border-color:var(--line-strong)}
+.page-column{background:var(--list);border-left-color:var(--line-strong)}
+.comparison-column h4{color:var(--ink)}
+.quote-source,.quote-meta{color:var(--muted)}
+.quote-meta>span{border-left-color:var(--line-strong)}
+.evidence-missing,.scope{color:var(--muted)}
+.limitations-section{background:var(--list);border-color:transparent}
+.detail-action{border:0;border-top:1px solid var(--line);border-radius:0;padding:20px 0 0}
+.verification-note{border-top-color:var(--line)}
+.history-item,.all-evidence{border-bottom-color:var(--line)}
+.history-item summary time,.history-status,.all-evidence>summary>span{color:var(--muted)}
+.investigation-timeline p{color:var(--muted)}
+.fixture-label{color:var(--ink-2);border-color:#b9c0ca}
+.tag{color:var(--ink-2);border-color:var(--line-strong)}
+.screenshot-preview{border-color:var(--line-strong)}
+.screenshot-record figcaption{color:var(--muted)}
+
+/* Empty states stay quiet so the sidebar magnifier remains the one decorative element. */
+.empty{color:var(--muted)}
+.empty-lens{background:var(--list);border-color:var(--line-strong);color:var(--muted)}
+
+/* Overlays: the only translucent surfaces. */
+.overlay,.image-overlay{background:#11182766;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.image-dialog{border-color:var(--line-strong);border-radius:var(--radius-lg)}
+.image-dialog-header{background:#fffffff2;backdrop-filter:saturate(1.6) blur(16px);-webkit-backdrop-filter:saturate(1.6) blur(16px)}
+.close-btn:active{background:var(--pressed)}
+
+/* Activity and Connections */
+.status-panel,.connection-card,.capabilities>div{border-color:var(--line-strong)}
+.status-row p,.connection-heading p,.connection-details dt{color:var(--muted)}
+.event strong,.event button{color:var(--ink)}
+.event time{color:var(--muted)}
+.event:before{background:#b9c0ca}
+.event:first-child:before{background:var(--blue)}
+
+@media(max-width:760px){
+  .sidebar{background:var(--bg);border-bottom-color:var(--line-strong)}
+  .main{border-radius:0;box-shadow:none}
+  .nav-btn.active{box-shadow:0 0 0 1px #10182812}
+}

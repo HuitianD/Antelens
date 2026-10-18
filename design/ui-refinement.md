@@ -35,3 +35,10 @@ Overview has three primary groups: Pause here, Confirm first, and No action need
 Keep the reference's colors, rounded paper surfaces, and distinctive type. Remove redundant eyebrows and non-sequential numbered section headings. The Overview hero and two-column card grid are removed; keep the lens away from individual findings. Use actual persisted events instead of a progress percentage or speculative future stages. Keep stale assessed cards in their existing grid while rechecking. Preserve version guards and stable ordering. Place fixture controls in a closed disclosure on Activity; do not mix them with daily actions.
 
 Critique desktop at 1440×900 and mobile at 390×844, including comparison, image zoom, failure/retry, empty search, and an assessment update while the drawer remains open.
+
+## Visual polish and sidebar magnifier
+
+- Three related surfaces: silver navigation `#e6e9ee`, soft list `#f5f6f8`, white detail. Graphite text (`#1b1f26`, secondary `#555d69`); faint labels were raised to readable contrast.
+- One blue `#0b63d6` for selection, primary actions and focus. The selected row uses a tinted background, a 3px indicator and a blue source icon. Semantic verdict colors are unchanged.
+- Buttons, search, chips, navigation and rows have explicit hover, pressed, selected and focus states (`apps/web/app/polish.css`, loaded after `globals.css`). Only overlays are translucent. Next-step guidance is no longer boxed; message and evidence keep solid frames.
+- The sidebar holds one decorative 3D magnifying glass (`SidebarMagnifier`, lazy-loading `MagnifyingGlass3D`): procedural geometry, a locally generated studio environment, transparent canvas, ±25° sway with slight pointer tilt. It takes 156px or 116px from the free space between navigation and footer, hides below that and on the icon rail and phone layouts, pauses when hidden or offscreen, holds a still pose under reduced motion, and falls back to a static SVG without WebGL or after an error. Empty states use a neutral lens so the magnifier stays the only decorative element.
