@@ -8,5 +8,5 @@ export default defineConfig({
  testDir:'tests/e2e',fullyParallel:false,workers:1,timeout:45000,
  use:{baseURL,viewport:{width:1440,height:900},trace:'retain-on-failure',screenshot:'only-on-failure'},
  reporter:[['list'],['html',{open:'never'}]],
- webServer:{command:'pnpm dev:demo',url:baseURL,reuseExistingServer:!process.env.CI,timeout:90000,env:{WEB_ORIGIN:baseURL,API_ORIGIN:apiOrigin,NEXT_PUBLIC_API_ORIGIN:apiOrigin,API_PORT:new URL(apiOrigin).port,PORT:new URL(baseURL).port,WEB_DIST_DIR:'.next-ui'}},
+ webServer:{command:'pnpm dev:demo',url:baseURL,reuseExistingServer:!process.env.CI,timeout:90000,gracefulShutdown:{signal:'SIGTERM',timeout:5000},env:{WEB_ORIGIN:baseURL,API_ORIGIN:apiOrigin,NEXT_PUBLIC_API_ORIGIN:apiOrigin,API_PORT:new URL(apiOrigin).port,PORT:new URL(baseURL).port,WEB_DIST_DIR:process.env.E2E_WEB_DIST_DIR||'.next-ui',DEMO_DATA_PATH:process.env.E2E_DATA_PATH||'.local/demo-state.json'}},
 });

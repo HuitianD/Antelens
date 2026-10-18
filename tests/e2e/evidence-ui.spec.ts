@@ -68,8 +68,19 @@ test('pending investigation shows saved events without invented progress stages'
   await page.goto('/'); await expect(page.locator('.case-row')).toHaveCount(5);
   const receipt = await request.post(`${apiOrigin}/v1/demo/events`, {headers:{Origin:origin},data:{scenario:'SC-05'}});
   expect(receipt.status()).toBe(202);
+  const sourceId = (await receipt.json()).data.sourceEventId;
+  let caseId = '';
+  await expect.poll(async () => {
+    const source = (await (await request.get(`${apiOrigin}/v1/messages/${sourceId}`)).json()).data;
+    caseId = source.caseIds[0] || ''; return Boolean(caseId);
+  }, { timeout: 2000 }).toBeTruthy();
+  const pending = await (await request.get(`${apiOrigin}/v1/cases/${caseId}`)).json();
+  expect(['queued', 'checking']).toContain(pending.data.activeRun?.status);
+  // Hold the actual saved in-flight detail for this presentation check. The independent
+  // worker may finish before Chromium clicks; the follow-up test verifies its full lifecycle.
+  await page.route(`${apiOrigin}/v1/cases/${caseId}`, route => route.fulfill({ json: pending }));
   await expect(page.locator('.case-row')).toHaveCount(6);
-  await page.locator('.case-row.unassessed').filter({hasNotText:'student account'}).click();
+  await page.locator(`.case-row[data-case-id="${caseId}"]`).click();
   await expect(page.locator('.current-stage')).toBeVisible();
   await expect(page.getByRole('region',{name:'Case detail'}).getByText('No assessment yet',{exact:true})).toBeVisible();
   await expect(page.getByRole('progressbar')).toHaveCount(0);

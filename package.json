@@ -15,7 +15,7 @@
     "build": "tsx scripts/build.ts",
     "lint": "eslint apps packages fixtures evals scripts tests --no-warn-ignored",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test",
+    "test": "node --import tsx --test scripts/*.test.ts && pnpm -r --if-present test",
     "test:e2e": "playwright test",
     "doctor": "tsx scripts/doctor.ts",
     "check:supabase": "pnpm --filter @beforeyou/api check:supabase",

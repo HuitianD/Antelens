@@ -20,7 +20,7 @@ The extension saves only owner/page-scoped receipt identifiers and page metadata
 
 ## Checks
 
-Final hackathon verification is pending the magnifier handoff/merge. The commands below describe the earlier isolated live checkpoint, not an instruction to rerun it during release preparation. Owner-profile rehearsal after the merge must follow the [demo script](demo-script.md).
+Final merged verification and the owner-profile Chrome rehearsal are recorded in [verification](verification.md). The commands below describe the earlier isolated live checkpoint, not an instruction to rerun it during release preparation. Present the current scoped flow using the [demo script](demo-script.md).
 
 `pnpm test` covers zero-email SQL ingestion, idempotency, exact-page case reuse, history, cross-owner denial, standalone/linked prompt paths, required text citations, historical screenshot companion matching and status restoration. Providers in these deterministic tests are explicitly mocked and are not live proof.
 

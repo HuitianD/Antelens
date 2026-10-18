@@ -11,7 +11,7 @@ Preview: **http://127.0.0.1:3002**. This is explicit demo mode with synthetic da
 
 ## Design and provenance
 
-Applied [Anthropic's official frontend-design skill](../.cursor/skills/frontend-design/SKILL.md). The complete upstream skill directory and Apache license are preserved in `.cursor/skills/frontend-design/`; its source is recorded there. The skill is installed for future project turns.
+Applied [Anthropic's official frontend-design skill](https://github.com/anthropics/skills/tree/main/skills/frontend-design). The complete upstream skill directory and Apache license are preserved locally in ignored `.cursor/skills/frontend-design/`; its source is recorded there. The skill is installed for future project turns.
 
 The approved cool gray, muted blue, URW Gothic, Palladio, and lens motif remain. Evidence is the drawer's primary content. Numbered non-sequential headings, redundant labels, and the everyday workspace's fixture controls were removed or relocated. Progress displays only saved run statuses and recorded steps, with no estimated percentage or fabricated stages.
 

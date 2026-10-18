@@ -1,6 +1,6 @@
 # Integration setup and current boundaries
 
-The current authenticated capture demo uses real Supabase, Gmail ingestion, Factory/Claude and **offline Daytona inspection of owner-captured content**. Credential-free demo mode is synthetic/simulated and proves none of those integrations. Final merged hackathon verification is pending Claude's sidebar handoff; see [verification](verification.md) for the dated baseline and saved run receipts. Keep secrets in ignored `.env.local` or deployment secret settings, never chat, Git, screenshots or browser bundles.
+The current authenticated capture demo uses real Supabase, Gmail ingestion, Factory/Claude and **offline Daytona inspection of owner-captured content**. Credential-free demo mode is synthetic/simulated and proves none of those integrations. The merged hackathon UI and a fresh owner-profile Chrome capture have passed the scoped final checks; see [verification](verification.md) for exact results and remaining broader acceptance gates. Keep secrets in ignored `.env.local` or deployment secret settings, never chat, Git, screenshots or browser bundles.
 
 ## Current capability audit
 
@@ -36,7 +36,7 @@ References used during implementation: [Factory SDK](https://docs.factory.com/sd
 
 ## Supabase account and application login
 
-The designated development project, Auth, database migrations and private evidence bucket are already configured. Existing authenticated cases and screenshots were read successfully. No account action is needed for Phase A. Full live owner-isolation/revoke/recovery acceptance is not implied by those reads.
+The designated development project, Auth, database migrations and private evidence bucket are already configured. Existing authenticated cases and screenshots were read successfully. No new account action was needed for the scoped final rehearsal. Full live owner-isolation/revoke/recovery acceptance is not implied by those reads.
 
 For a replacement environment only:
 
@@ -66,7 +66,7 @@ Actual BYOK sessions succeeded with `claude-sonnet-4-6` through Factory, not aut
 
 Worker-only destinations in root `.env.local`: `FACTORY_API_KEY`, `ANTHROPIC_API_KEY`, `CLAUDE_MODEL_ID`; optional `ANTHROPIC_WORKSPACE_ID` and `DROID_EXEC_PATH`. Do not copy these to the extension. Local launchers use `scripts/load-env-local.ts` because Node env-file loading drops `CLAUDE_*` variables. Do not shell-source `.env.local`; preserve its ignored contents.
 
-Existing probe commands: `pnpm --filter @beforeyou/agent exec tsx scripts/probe-anthropic.ts`, corresponding `scripts/probe-droid-byok.ts`, and `APP_MODE=live pnpm exec tsx scripts/investigation-checkpoint.ts`. These can make paid calls and are **not** Phase A preflight commands. The final rehearsal will use the owner Chrome flow, not a backend-injected substitute.
+Existing probe commands: `pnpm --filter @beforeyou/agent exec tsx scripts/probe-anthropic.ts`, corresponding `scripts/probe-droid-byok.ts`, and `APP_MODE=live pnpm exec tsx scripts/investigation-checkpoint.ts`. These can make paid calls; do not rerun them as routine preflight checks. The final rehearsal used the real owner-profile Chrome toolbar flow.
 
 ## Daytona browser access
 
