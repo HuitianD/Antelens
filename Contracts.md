@@ -100,6 +100,17 @@ interface Limitation {
   evidenceIds: string[];
 }
 
+interface CapturedInspection {
+  method: "captured_page_daytona";
+  label: "Captured page inspected in Daytona";
+  captureId: string;
+  bundleHash: string;
+  sandboxId: string;
+  capturedAt: string;
+  inspectedAt: string;
+  networkRequests: 0;
+}
+
 interface Evidence {
   id: string;
   caseId: string;
@@ -114,6 +125,7 @@ interface Evidence {
   artifactId: string | null;
   contentHash: string;
   provenance: Provenance;
+  inspection?: CapturedInspection; // Present only for actual offline Daytona output.
 }
 
 interface Finding {
@@ -176,6 +188,7 @@ interface InvestigationRun {
   provenance: Provenance;
   limitations: Limitation[];
   error: ApiError["error"] | null;
+  pageCaptureId?: string; // Immutable stored bundle selected for this run.
 }
 
 interface JourneyStep {
@@ -345,9 +358,23 @@ Validate tokens on the API regardless of frontend guards. Permit only configured
 | `DELETE /v1/connections/:id` | Auth | Disconnection result, cancelled-run count, provider-revocation status |
 | `POST /v1/browser/installations` | `{clientInstallationId, displayName}` | Idempotently register this authenticated owner's extension installation; return server-owned `{installationId, connectionId}` |
 | `POST /v1/browser/events` | `BrowserEventInput` | HTTP 202 `{sourceEventId, caseId: string | null, runId: string | null}`; triage may still be pending |
+| `POST /v1/browser/site-grants` | `{installationId, origin, granted}` | Record the exact controlled origin on the authenticated owner's browser connection; installation ownership required |
+| `POST /v1/browser/captures` | `{clientCaptureId, installationId, caseId, bundle}` | HTTP 202 `{captureId, sourceEventId, caseId, runId, reused, label}`; explicit existing email case, atomic ingestion and investigation outbox |
 | `GET /v1/events` | Auth; optional `Last-Event-ID` header | Authenticated SSE stream |
 
 Snapshot/DTO implementation may use explicit named interfaces for each route, generated from these shapes. Do not return different error formats for browser events and Gmail-derived cases.
+
+### Controlled captured-page inspection
+
+This opt-in path complements existing Gmail ingestion and browser events. The controlled rental page requires an explicit **Check this page** action; its content script does not auto-ingest a separate case. `caseId` must identify an existing email case owned by the authenticated user. The model cannot select ownership or change the association.
+
+The executable wire schemas live in `packages/contracts/src/page-capture.ts`. `PageBundle` contains only `schemaVersion: "1"`, origin/path-only `pageUrl`, bounded title, UTC `capturedAt`, at most 8,000 visible-text characters, up to 160 typed text blocks (heading, paragraph, list item, field label, table row), visible field labels, and viewport dimensions. It rejects extra fields. No cookies, storage, headers, tokens, entered values, original HTML, executable scripts, hidden content, query parameters, or fragments are transferred. The collector selects on-screen rendered text and redacts token-like strings; the API validates again. The API permits only `CAPTURE_ALLOWED_ORIGIN` plus `CAPTURE_ALLOWED_PATH` and a stored installation grant.
+
+`page_captures` stores the immutable canonical bundle and SHA-256 with composite ownership constraints. `(owner, installation, clientCaptureId)` is idempotent; reusing an ID with changed content or case conflicts. New capture IDs produce new source revisions on the selected case and cancel old leases. Rechecks use the latest stored bundle. New Gmail ingress retains its existing behavior.
+
+Capture-triggered runs use prompt `captured-page-1.0.0` and tools `offline-bundle-1.0.0`. They always require real Daytona and Factory/Claude, regardless of the normal `BROWSER_RUNTIME`. The SDK uploads bytes plus the reviewed renderer into the configured snapshot with `networkBlockAll: true`. Installed Chromium renders escaped inert content without navigating the original URL. All browser requests are aborted. JSON and PNG outputs return through SDK file download; hashes, PNG signature and zero request count are checked. No local fallback, egress-policy change, or additional billing capability is used.
+
+`CapturedInspection` records `method: "captured_page_daytona"`, exact `label: "Captured page inspected in Daytona"`, capture ID, bundle hash, sandbox ID, capture/inspection UTC times, and `networkRequests: 0`. It appears on the actual page excerpt and screenshot. Synthetic captured-page evidence remains `synthetic/live`; email evidence retains its own origin, and a run involving user Gmail is `user/live`. Claude must cite both email and current captured-page evidence. The resulting concern remains `limited`, with an explicit offline-scope limitation. It cannot establish a favorable result, live website verification, unseen-page exploration, actual enrollment, or sender verification. Screenshots depict an offline reconstruction. Private Supabase artifacts and immutable assessment history use the existing case APIs and SSE events.
 
 The three judgment counts include only cases with a current, non-stale assessment. Their default filters use the same scope so counts and results agree. Show stale and unassessed cases in a separate update/checking area; preserve prior concerns in the detail view labeled as previous. When explicitly filtering stale cases, never style a previous `no_issues_found` result as a current favorable judgment. Checking, limited, and stale counts may overlap and must not be presented as a disjoint total.
 

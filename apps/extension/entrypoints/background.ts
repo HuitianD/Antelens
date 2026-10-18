@@ -1,12 +1,12 @@
 import { browser } from 'wxt/browser';
-import { BrowserEventInputSchema, BrowserInstallationSchema, CaseDetailSchema, MessageDetailSchema } from '@beforeyou/contracts';
-import { access, authClient, signIn } from '../src/auth';
+import { BrowserEventInputSchema, BrowserInstallationSchema, CaseDetailSchema, MessageDetailSchema,PageBundleSchema,PageCaptureInputSchema,AcceptedPageCaptureSchema,PageSchema,CaseSummarySchema,IdSchema,ApiErrorSchema } from '@beforeyou/contracts';
+import { access, authClient, signIn,signInWithPassword } from '../src/auth';
 import { config, type PageState } from '../src/config';
 export default defineBackground(() => {
   async function api(path: string, method = 'GET', body?: unknown): Promise<unknown> {
     const { token } = await access();
     const response = await fetch(`${config.apiOrigin}/v1${path}`, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: body ? JSON.stringify(body) : undefined });
-    if (!response.ok) throw new Error(response.status === 401 ? 'Your sign-in expired. Reconnect this browser.' : response.status === 403 ? 'This browser is not authorized. Check the allowed extension origin.' : 'The connection could not complete. Try again.');
+    if (!response.ok) {const error=ApiErrorSchema.safeParse(await response.json().catch(()=>null));throw new Error(error.success?error.data.error.message:response.status === 401 ? 'Your sign-in expired. Reconnect this browser.' : response.status === 403 ? 'This browser is not authorized. Check the allowed extension origin.' : 'The connection could not complete. Check that the local API is running and try again.');}
     const result = await response.json(); return result.data ?? result;
   }
   async function installation() {
@@ -31,7 +31,9 @@ export default defineBackground(() => {
     const detail = CaseDetailSchema.parse(await api(`/cases/${caseId}`));
     const assessment = detail.currentAssessment;
     const run = detail.case.latestRunStatus;
-    const next: PageState = { ...state, caseId, phase: run === 'failed' ? 'failed' : run === 'limited' ? 'limited' : assessment ? 'ready' : 'checking', message: run === 'failed' ? 'The investigation could not complete.' : run === 'limited' ? 'Some requested steps could not be checked.' : assessment ? (detail.case.freshness === 'stale' ? 'Previous assessment · Rechecking' : 'Based on the observed steps') : 'Checking the accessible next steps…', verdict: assessment?.verdict, finding: assessment?.finding.headline };
+    const current=assessment&&detail.case.freshness==='current'&&(!state.runId||assessment.runId===state.runId);
+    const inspected=Boolean(current&&detail.evidence.some(e=>e.runId===assessment.runId&&e.inspection?.captureId===state.captureId));
+    const next: PageState = { ...state, caseId, phase: run === 'failed' ? 'failed' : run==='queued'||run==='checking'?'checking':run === 'limited' ? 'limited' : current ? 'ready' : 'checking', message: run === 'failed' ? 'The investigation could not complete. No local fallback was used.' : inspected?'Captured page inspected in Daytona':state.captureId?'Captured content is queued for offline inspection.':current?'Based on the observed steps':'Checking the accessible next steps…', verdict: current?assessment.verdict:undefined, finding:current?assessment.finding.headline:undefined,inspectedInDaytona:inspected };
     await setState(tabId, next); return next;
   }
   browser.runtime.onMessage.addListener((message, sender) => {
@@ -54,7 +56,25 @@ export default defineBackground(() => {
       }
       if (sender.id !== browser.runtime.id || !sender.url?.startsWith(browser.runtime.getURL(''))) throw new Error('This action is only available from the extension panel.');
       if (message.type === 'auth_status') { try { const identity = await access(); return { ok: true, signedIn: Boolean(identity.owner) }; } catch { return { ok: true, signedIn: false }; } }
-      if (message.type === 'sign_in') { await signIn(); const stored = await browser.storage.session.get(null); await browser.storage.session.remove(Object.keys(stored).filter(key => key.startsWith('page:'))); await installation(); const tabs = await browser.tabs.query({}); for (const tab of tabs) if (tab.id !== undefined) await browser.tabs.sendMessage(tab.id, { type: 'beforeyou:rescan' }).catch(() => undefined); return { ok: true }; }
+      if (message.type === 'sign_in') { if(message.email&&message.password)await signInWithPassword(String(message.email),String(message.password));else await signIn(); const stored = await browser.storage.session.get(null); await browser.storage.session.remove(Object.keys(stored).filter(key => key.startsWith('page:'))); await installation(); const tabs = await browser.tabs.query({}); for (const tab of tabs) if (tab.id !== undefined) await browser.tabs.sendMessage(tab.id, { type: 'beforeyou:rescan' }).catch(() => undefined); return { ok: true }; }
+      if(message.type==='email_cases'){const page=PageSchema(CaseSummarySchema).parse(await api('/cases?limit=100'));return {ok:true,cases:page.items.filter(c=>c.sourceKinds.includes('gmail')).map(c=>({id:c.id,title:c.title}))};}
+      if(message.type==='grant_site'){const origin=String(message.origin);if(origin!==config.captureOrigin)throw new Error('Only the controlled rental origin is available for captured-page inspection.');const registered=await installation();await api('/browser/site-grants','POST',{installationId:registered.installationId,origin,granted:Boolean(message.granted)});return {ok:true};}
+      if(message.type==='check_page'){
+        const caseId=IdSchema.parse(message.caseId),tabId=Number(message.tabId);
+        const tab=await browser.tabs.get(tabId);if(!tab.url)throw new Error('Open the controlled rental page first.');
+        const pageUrl=new URL(tab.url),origin=pageUrl.origin;
+        const explicit=(await browser.storage.local.get('allowedSiteOrigins')).allowedSiteOrigins;
+        if(origin!==config.captureOrigin||pageUrl.pathname!==config.capturePath||!Array.isArray(explicit)||!explicit.includes(origin)||!await browser.permissions.contains({origins:[`${origin}/*`]}))throw new Error('Grant the controlled rental site before checking it.');
+        const registered=await installation();
+        await api('/browser/site-grants','POST',{installationId:registered.installationId,origin,granted:true});
+        let response;try{response=await browser.tabs.sendMessage(tabId,{type:'beforeyou:capture'});}catch{await browser.scripting.executeScript({target:{tabId},files:['/content-scripts/observe.js']});response=await browser.tabs.sendMessage(tabId,{type:'beforeyou:capture'});}
+        const bundle=PageBundleSchema.parse(response?.bundle);
+        if(bundle.pageUrl!==`${origin}${pageUrl.pathname}`)throw new Error('The captured content no longer matches this tab. Refresh the page and try again.');
+        const payload=PageCaptureInputSchema.parse({clientCaptureId:crypto.randomUUID(),installationId:registered.installationId,caseId,bundle});
+        const accepted=AcceptedPageCaptureSchema.parse(await api('/browser/captures','POST',payload));
+        await setState(tabId,{phase:'checking',message:'Captured page queued for offline Daytona inspection.',sourceEventId:accepted.sourceEventId,caseId,captureId:accepted.captureId,runId:accepted.runId});
+        return {ok:true,...accepted};
+      }
       if (message.type === 'sign_out') { if (config.mode !== 'demo') await authClient().auth.signOut(); await browser.storage.session.clear(); return { ok: true }; }
       if (message.type === 'retry_check') {
         const key = `page:${message.tabId}`;

@@ -1,5 +1,8 @@
 import { createServer } from './server.js';
 import { loadConfig } from './config.js';
+import { fileURLToPath } from 'node:url';
+import { loadEnvLocal } from '../../../scripts/load-env-local.js';
+loadEnvLocal(fileURLToPath(new URL('../../../.env.local', import.meta.url)));
 const config = loadConfig();
 const app = await createServer(config);
 await app.listen({ host: config.host, port: config.port });

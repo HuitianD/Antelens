@@ -39,16 +39,17 @@ All visible demo findings are `synthetic/simulated`. The browser-panel preview d
 | Overview, messages, evidence/history drawer, Activity, Connections, browser preview | Implemented; desktop/mobile browser workflows verified |
 | Saved demo state, background jobs, fetch SSE, viewing/rechecks, same-case revisions | Implemented and tested with explicit simulation |
 | Shared Zod contracts, Drizzle migrations, owner checks, leases, outbox, immutable history | Implemented; actual PostgreSQL SQL tested offline with PGlite |
-| Gmail OAuth and incremental polling | Live consent and `[BY-TEST]` import verified. User-origin messages are assessed from the message text while Daytona is unavailable; linked pages are not opened locally |
+| Gmail OAuth and incremental polling | Live consent and `[BY-TEST]` import verified. Standard user-origin runs remain message-only; explicitly associated captures add offline Daytona evidence. Mailbox links are not opened locally |
 | Factory Claude BYOK (Droid CLI 0.212.1, `claude-sonnet-4-6`) | Live-verified: SC-01 triage, investigation tools, evidence-backed `pause_here` assessment, Supabase persistence, and dashboard display (2026-10-18) |
-| Daytona browser sandbox | Implemented and preserved; blocked by Tier 1 egress (TLS reset). Not verified. Interim `BROWSER_RUNTIME=local_controlled` opens only controlled fixture pages. Real mailbox links stay closed and those runs publish as `limited` |
-| Chrome MV3 extension | Production build and isolated Chromium pre-consent smoke verified; owner-profile sign-in/consent unverified |
-| Supabase Auth, PostgreSQL, private Storage | Adapters/configuration prepared; live project checkpoint blocked on credentials |
+| Daytona browser sandbox | Real offline bundle upload, Chromium rendering, evidence download and cleanup verified on Tier 1. General website egress remains blocked; normal Gmail runtime retained |
+| Connected captured-page checkpoint | Real Gmail case → durable queue → Factory/Claude + offline Daytona → Supabase evidence and assessment revisions verified at $29/$39. [Load and review the extension](docs/captured-page-demo.md) |
+| Chrome MV3 extension | Production build, actual unpacked ID, sign-in UI, exact CORS and capture privacy verified; owner-profile authentication/site consent/capture pending |
+| Supabase Auth, PostgreSQL, private Storage | Configured development project; tracked capture migration and real private screenshot persistence/download verified. Owner-profile flow remains a separate checkpoint |
 | Railway deployment | Configuration prepared; no deployment or paid resource created |
 
 **The minimum release remains incomplete** until the live acceptance gates in `Spec.md` pass. The [integration guide](docs/integrations.md) contains exact owner actions and secret destinations. Secrets belong in ignored `.env.local` or service secret settings, never chat, source, or browser bundles.
 
-Latest local verification: **88 deterministic tests and 3 Chromium workflows passed**. Workspace lint, typechecks, frozen-lockfile installation, and production web/extension builds passed. The built production page was also opened in Chromium: it requires sign-in and exposes no demo controls. Local evaluation reports 8 policy/contract checks passed and 1 unsupported model-accuracy check. See the [acceptance evidence and remaining gates](docs/verification.md).
+The captured-page checkpoint and current checks are recorded in the [connected demo guide](docs/captured-page-demo.md). Earlier UI/evaluation acceptance evidence remains in [verification](docs/verification.md); fixture tests do not prove live integration behavior.
 
 ## Commands
 

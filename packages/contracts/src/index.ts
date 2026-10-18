@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { CapturedInspectionSchema } from './page-capture';
+export * from './page-capture';
 
 export const API_VERSION = '1' as const;
 export const API_PREFIX = '/v1' as const;
@@ -48,6 +50,7 @@ export const EvidenceSchema = z.strictObject({
   id: IdSchema, caseId: IdSchema, runId: IdSchema.nullable(), sourceEventId: IdSchema.nullable(), stepId: IdSchema.nullable(), kind: EvidenceKindSchema,
   observedAt: TimestampSchema, sourceLabel: BoundedText(500), displayUrl: z.string().max(2048).nullable(), excerpt: z.string().max(32000).nullable(),
   artifactId: IdSchema.nullable(), contentHash: z.string().regex(/^[a-f0-9]{64}$/), provenance: ProvenanceSchema,
+  inspection: CapturedInspectionSchema.optional(),
 });
 export const FindingSchema = z.strictObject({ headline: BoundedText(120), consequence: BoundedText(180).nullable(), evidenceIds: Ids.min(1) });
 export const NextActionSchema = z.discriminatedUnion('kind', [
@@ -72,6 +75,7 @@ export const InvestigationRunSchema = z.strictObject({
   status: RunStatusSchema, attempt: z.number().int().nonnegative(), startedAt: TimestampSchema.nullable(), finishedAt: TimestampSchema.nullable(),
   modelId: Text, promptVersion: Text, policyVersion: Text, toolVersion: Text, provenance: ProvenanceSchema,
   limitations: z.array(LimitationSchema), error: ApiErrorDetailSchema.nullable(),
+  pageCaptureId: IdSchema.optional(),
 });
 export const JourneyStepSchema = z.strictObject({
   id: IdSchema, runId: IdSchema, index: z.number().int().nonnegative(), kind: z.enum(['open_page', 'follow_link', 'inspect_page', 'capture_evidence', 'compare_sources']),

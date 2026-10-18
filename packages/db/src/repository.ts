@@ -5,9 +5,11 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from './schema.js';
 import {
   ActivityEventSchema, AssessmentSchema, CaseSummarySchema, ConnectionSummarySchema, EvidenceSchema, InvestigationRunSchema, JourneyStepSchema, SourceEventSchema,
+  PageCaptureInputSchema, StoredPageCaptureSchema, CAPTURE_LABEL,CAPTURE_PROMPT_VERSION,CAPTURE_TOOL_VERSION,
   assertAssessmentProposal, assertTriageProposal, assertRunTransition, dashboardCounts,
   type AcceptedRun, type ActivityEvent, type AppMode, type Assessment, type AssessmentProposal, type CaseDetail, type CaseFilters, type CaseSummary, type ConnectionSummary,
   type DashboardSnapshot, type Evidence, type InvestigationRun, type JourneyStep, type MessageDetail, type MessageFilters, type MessageSummary, type Page, type RecheckInput, type SourceEvent, type TriageProposal, type ApiError,
+  type PageCaptureInput, type StoredPageCapture, type AcceptedPageCapture,
 } from '@beforeyou/contracts';
 
 export class RepositoryError extends Error {
@@ -86,8 +88,8 @@ export class PostgresRepository {
     InvestigationRunSchema.parse(run);
     await client.query('UPDATE investigation_runs SET status=$3,dto=$4 WHERE owner_id=$1 AND id=$2', [ownerId, run.id, run.status, run]);
   }
-  private async newRun(client: PoolClient, ownerId: string, item: CaseSummary, trigger: InvestigationRun['trigger'], config: RunConfiguration, origin: SourceEvent['dataOrigin']): Promise<InvestigationRun> {
-    const run = InvestigationRunSchema.parse({ id: randomUUID(), caseId: item.id, sourceRevision: item.sourceRevision, trigger, status: 'queued', attempt: 0, startedAt: null, finishedAt: null, modelId: config.modelId, promptVersion: config.promptVersion, policyVersion: config.policyVersion, toolVersion: config.toolVersion, provenance: { dataOrigin: origin, execution: config.execution }, limitations: [], error: null });
+  private async newRun(client: PoolClient, ownerId: string, item: CaseSummary, trigger: InvestigationRun['trigger'], config: RunConfiguration, origin: SourceEvent['dataOrigin'], pageCaptureId?:string): Promise<InvestigationRun> {
+    const run = InvestigationRunSchema.parse({ id: randomUUID(), caseId: item.id, sourceRevision: item.sourceRevision, trigger, status: 'queued', attempt: 0, startedAt: null, finishedAt: null, modelId: config.modelId, promptVersion: pageCaptureId?CAPTURE_PROMPT_VERSION:config.promptVersion, policyVersion: config.policyVersion, toolVersion: pageCaptureId?CAPTURE_TOOL_VERSION:config.toolVersion, provenance: { dataOrigin: origin, execution: config.execution }, limitations: [], error: null, ...(pageCaptureId?{pageCaptureId}:{}) });
     await client.query('INSERT INTO investigation_runs(id,owner_id,case_id,source_revision,status,dto) VALUES($1,$2,$3,$4,$5,$6)', [run.id, ownerId, item.id, run.sourceRevision, run.status, run]);
     item.activeRunId = run.id; item.latestRunStatus = 'queued'; item.freshness = item.currentAssessment ? 'stale' : 'current';
     await this.outbox(client, ownerId, 'investigate', run.id, { ownerId, caseId: item.id, runId: run.id });
@@ -127,7 +129,7 @@ export class PostgresRepository {
       const runs = await client.query('SELECT dto FROM investigation_runs WHERE owner_id=$1 AND case_id=$2 ORDER BY created_at DESC,id DESC', [ownerId, caseId]);
       const parsedRuns = runs.rows.map((row) => InvestigationRunSchema.parse(row.dto)); const activeRun = parsedRuns.find((run) => run.id === item.activeRunId) ?? null;
       const latestRun = activeRun ?? parsedRuns[0] ?? null;
-      const runId = item.currentAssessment?.runId ?? latestRun?.id;
+      const runId = activeRun?.id ?? item.currentAssessment?.runId ?? latestRun?.id;
       const steps = runId ? await client.query('SELECT dto FROM investigation_steps WHERE owner_id=$1 AND run_id=$2 ORDER BY step_index', [ownerId, runId]) : { rows: [] };
       const evidence = await client.query('SELECT dto FROM evidence WHERE owner_id=$1 AND case_id=$2 ORDER BY created_at,id', [ownerId, caseId]);
       return { case: item, sources: sources.rows.map((row) => SourceEventSchema.parse(row.dto)), currentAssessment: item.currentAssessment, activeRun, latestRun, journey: steps.rows.map((row) => JourneyStepSchema.parse(row.dto)), evidence: evidence.rows.map((row) => EvidenceSchema.parse(row.dto)), historyCursor: null };
@@ -204,6 +206,41 @@ export class PostgresRepository {
     const result = await this.pool.query("SELECT DISTINCT c.dto FROM source_events incoming JOIN source_events prior ON prior.owner_id=incoming.owner_id AND prior.connection_id=incoming.connection_id AND ((incoming.kind='gmail' AND incoming.external_thread_id IS NOT NULL AND prior.external_thread_id=incoming.external_thread_id) OR (incoming.kind='browser' AND incoming.original_url IS NOT NULL AND prior.original_url=incoming.original_url)) JOIN case_sources cs ON cs.owner_id=prior.owner_id AND cs.source_event_id=prior.id JOIN cases c ON c.owner_id=cs.owner_id AND c.id=cs.case_id WHERE incoming.owner_id=$1 AND incoming.id=$2", [ownerId, sourceId]);
     return result.rows.map((row) => CaseSummarySchema.parse(row.dto));
   }
+  /** A user-selected existing email case is authoritative; the model never chooses the capture's ownership or case. */
+  async ingestCapturedPage(ownerId:string,input:PageCaptureInput,config:RunConfiguration,dataOrigin:SourceEvent['dataOrigin']='synthetic'):Promise<AcceptedPageCapture> {
+    const parsed=PageCaptureInputSchema.parse(input);
+    const requestHash=hash(JSON.stringify(parsed));
+    const route='browser-capture';
+    return this.transaction(ownerId,async client=>{
+      const key=`${parsed.installationId}:${parsed.clientCaptureId}`;
+      const previous=await client.query('SELECT request_hash,result FROM idempotency_records WHERE owner_id=$1 AND route=$2 AND key=$3',[ownerId,route,key]);
+      if(previous.rows[0]){if(previous.rows[0].request_hash!==requestHash)throw new RepositoryError('IDEMPOTENCY_CONFLICT','This capture ID was already used with different content or a different case.');return {...previous.rows[0].result,reused:true} as AcceptedPageCapture;}
+      const installation=await client.query("SELECT c.id,c.dto FROM browser_installations i JOIN connections c ON c.id=i.connection_id AND c.owner_id=i.owner_id WHERE i.owner_id=$1 AND i.id=$2 AND c.status='connected' FOR UPDATE OF c",[ownerId,parsed.installationId]);
+      const browserConnection=installation.rows[0];
+      if(!browserConnection)throw new RepositoryError('CONNECTION_REQUIRED','Register or reconnect this browser installation.');
+      if(!ConnectionSummarySchema.parse(browserConnection.dto).grantedScopes.includes(new URL(parsed.bundle.pageUrl).origin))throw new RepositoryError('CONNECTION_REQUIRED','Grant this site in the extension before capturing its content.');
+      const item=await this.lockedCase(client,ownerId,parsed.caseId);
+      const email=await client.query("SELECT se.dto FROM source_events se JOIN case_sources cs ON cs.source_event_id=se.id AND cs.owner_id=se.owner_id WHERE cs.owner_id=$1 AND cs.case_id=$2 AND se.kind='gmail' LIMIT 1",[ownerId,item.id]);
+      if(!email.rows[0])throw new RepositoryError('VALIDATION_ERROR','Choose an existing email case for this capture.');
+      const captureId=randomUUID(),sourceId=randomUUID(),receivedAt=now();
+      const capture=StoredPageCaptureSchema.parse({id:captureId,caseId:item.id,sourceEventId:sourceId,installationId:parsed.installationId,bundle:parsed.bundle,bundleHash:hash(JSON.stringify(parsed.bundle)),receivedAt,dataOrigin});
+      const source=SourceEventSchema.parse({id:sourceId,connectionId:browserConnection.id,kind:'browser',externalId:parsed.clientCaptureId,externalThreadId:null,receivedAt,occurredAt:parsed.bundle.capturedAt,title:parsed.bundle.title||'Captured rental page',senderLabel:null,previewText:parsed.bundle.visibleText,contentRef:`capture:${captureId}`,disposition:'action_required',processingStatus:'complete',lastErrorCode:null,dataOrigin});
+      await client.query('INSERT INTO source_events(id,owner_id,connection_id,external_id,external_thread_id,kind,disposition,processing_status,dto,content,links,original_url) VALUES($1,$2,$3,$4,NULL,$5,$6,$7,$8,$9,$10,$11)',[source.id,ownerId,source.connectionId,source.externalId,'browser',source.disposition,source.processingStatus,source,`Captured visible page content (untrusted, not email):\n${parsed.bundle.visibleText}`,JSON.stringify([parsed.bundle.pageUrl]),parsed.bundle.pageUrl]);
+      await client.query('INSERT INTO page_captures(id,owner_id,case_id,source_event_id,installation_id,client_capture_id,bundle_hash,dto) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[captureId,ownerId,item.id,source.id,parsed.installationId,parsed.clientCaptureId,capture.bundleHash,capture]);
+      await client.query('INSERT INTO case_sources(owner_id,case_id,source_event_id) VALUES($1,$2,$3)',[ownerId,item.id,source.id]);
+      await this.cancelActive(client,ownerId,item);
+      item.sourceRevision++;item.recordVersion++;item.updatedAt=receivedAt;if(!item.sourceKinds.includes('browser'))item.sourceKinds.push('browser');
+      const run=await this.newRun(client,ownerId,item,'new_evidence',config,SourceEventSchema.parse(email.rows[0].dto).dataOrigin==='user'?'user':dataOrigin,captureId);
+      await this.saveCase(client,ownerId,item);
+      for(const type of ['source.received','source.updated'] as const)await this.emit(client,ownerId,{type,caseId:item.id,sourceRevision:item.sourceRevision,data:{sourceEventId:source.id,kind:'browser',disposition:source.disposition,processingStatus:source.processingStatus,lastErrorCode:null,caseIds:[item.id]}});
+      await this.emit(client,ownerId,{type:'case.updated',caseId:item.id,sourceRevision:item.sourceRevision,data:{case:item}});
+      await this.emit(client,ownerId,{type:'investigation.queued',caseId:item.id,sourceRevision:item.sourceRevision,data:{runId:run.id,status:'queued'}});
+      const accepted:AcceptedPageCapture={captureId,sourceEventId:source.id,caseId:item.id,runId:run.id,reused:false,label:CAPTURE_LABEL};
+      await client.query('INSERT INTO idempotency_records(owner_id,route,key,request_hash,result) VALUES($1,$2,$3,$4,$5)',[ownerId,route,key,requestHash,accepted]);
+      return accepted;
+    });
+  }
+  async pageCapture(ownerId:string,captureId:string):Promise<StoredPageCapture>{const r=await this.pool.query('SELECT dto FROM page_captures WHERE owner_id=$1 AND id=$2',[ownerId,captureId]);if(!r.rows[0])throw notFound();return StoredPageCaptureSchema.parse(r.rows[0].dto);}
   async acceptTriage(ownerId: string, sourceId: string, proposalInput: TriageProposal, config: RunConfiguration): Promise<{ source: SourceEvent; caseId: string | null; runId: string | null }> {
     const candidates = await this.candidateCases(ownerId, sourceId);
     return this.transaction(ownerId, async (client) => {
@@ -303,7 +340,9 @@ export class PostgresRepository {
       }
       if (!accepted) {
         await this.cancelActive(client, ownerId, item);
-        const run = await this.newRun(client, ownerId, item, 'user_recheck', config, SourceEventSchema.parse(source.rows[0].dto).dataOrigin);
+        const latestCapture=await client.query('SELECT id FROM page_captures WHERE owner_id=$1 AND case_id=$2 ORDER BY created_at DESC,id DESC LIMIT 1',[ownerId,caseId]);
+        const origins=await client.query("SELECT 1 FROM source_events se JOIN case_sources cs ON cs.source_event_id=se.id AND cs.owner_id=se.owner_id WHERE cs.owner_id=$1 AND cs.case_id=$2 AND se.dto->>'dataOrigin'='user' LIMIT 1",[ownerId,caseId]);
+        const run = await this.newRun(client, ownerId, item, 'user_recheck', config, origins.rows.length?'user':SourceEventSchema.parse(source.rows[0].dto).dataOrigin,latestCapture.rows[0]?.id);
         accepted = { caseId, runId: run.id, status: 'queued', reused: false };
         await this.emit(client, ownerId, { type: 'investigation.queued', caseId, sourceRevision: item.sourceRevision, data: { runId: run.id, status: 'queued' } });
       }

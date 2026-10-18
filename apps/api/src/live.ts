@@ -9,6 +9,7 @@ import { registerOAuth } from './oauth.js';
 import { decryptCredentials } from './credentials.js';
 import {browserEventContent} from './browser-content.js';
 import {ingestSyntheticInvestigation,ingestSyntheticTestRecord} from './synthetic-ingest.js';
+import {registerCapturedPages} from './captured-pages.js';
 export async function registerLiveRoutes(app: FastifyInstance, config: ApiConfig) {
     const repo = new PostgresRepository(config.databaseUrl!);
     const streams = new Set<ServerResponse>();
@@ -23,6 +24,7 @@ export async function registerLiveRoutes(app: FastifyInstance, config: ApiConfig
     const ok = (r: FastifyRequest, data: unknown, eventCursor?: string) => ({ data, meta: { schemaVersion: '1', requestId: r.id, ...(eventCursor ? { eventCursor } : {}) } });
     const model = { modelId: process.env.CLAUDE_MODEL_ID ?? 'not_configured', promptVersion: C.INVESTIGATION_PROMPT_VERSION, policyVersion: C.INVESTIGATION_POLICY_VERSION, toolVersion: C.INVESTIGATION_TOOL_VERSION, execution: 'live' as const };
     registerOAuth(app, config, repo.pool);
+    registerCapturedPages(app,repo,model);
     app.get('/v1/dashboard', async (r) => { const snapshot = await repo.snapshot(owner(r)); return ok(r, snapshot.data, snapshot.eventCursor); });
     app.get('/v1/cases', async (r) => ok(r, await repo.listCases(owner(r), C.CaseFiltersSchema.parse(r.query))));
     app.get('/v1/cases/:id', async (r) => ok(r, await repo.caseDetail(owner(r), id(r))));

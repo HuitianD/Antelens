@@ -15,6 +15,7 @@ export async function investigationContext(
   // not acquire the current run's evidence privileges merely by being retained.
   const existingEvidence = prior.evidence.filter(evidence => evidence.runId === null);
   for (const source of sources) {
+    if(source.kind==='browser')continue; // Extension content is a page claim; only Daytona produces this run's independent page observation.
     const excerpt = source.content.slice(0, 32000);
     existingEvidence.push(await repo.saveEvidence(ownerId, run.id, generation, {
       id: randomUUID(), caseId: run.caseId, runId: run.id, sourceEventId: source.id,

@@ -1,5 +1,5 @@
 import { pgTable, uuid, text, integer, jsonb, timestamp, bigint, uniqueIndex, index, primaryKey } from 'drizzle-orm/pg-core';
-import type { ActivityEvent, Assessment, CaseSummary, ConnectionSummary, Evidence, InvestigationRun, JourneyStep, SourceEvent } from '@beforeyou/contracts';
+import type { ActivityEvent, Assessment, CaseSummary, ConnectionSummary, Evidence, InvestigationRun, JourneyStep, SourceEvent, StoredPageCapture } from '@beforeyou/contracts';
 
 const owner = () => uuid('owner_id').notNull();
 const created = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
@@ -53,4 +53,5 @@ export const browserInstallations = pgTable('browser_installations', {
   id: uuid('id').primaryKey(), ownerId: owner(), clientInstallationId: uuid('client_installation_id').notNull(), connectionId: uuid('connection_id').notNull(), displayName: text('display_name').notNull(), createdAt: created(),
 }, (t) => [uniqueIndex('browser_installations_owner_client_unique').on(t.ownerId, t.clientInstallationId)]);
 export const oauthStates = pgTable('oauth_states', { stateHash: text('state_hash').primaryKey(), ownerId: owner(), pkceVerifier: text('pkce_verifier').notNull(), returnTo: text('return_to').notNull(), expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(), takenAt: timestamp('taken_at', { withTimezone: true }), createdAt: created() });
+export const pageCaptures = pgTable('page_captures', {id:uuid('id').primaryKey(),ownerId:owner(),caseId:uuid('case_id').notNull(),sourceEventId:uuid('source_event_id').notNull(),installationId:uuid('installation_id').notNull(),clientCaptureId:uuid('client_capture_id').notNull(),bundleHash:text('bundle_hash').notNull(),dto:jsonb('dto').$type<StoredPageCapture>().notNull(),createdAt:created()},t=>[uniqueIndex('page_captures_owner_id_unique').on(t.ownerId,t.id),uniqueIndex('page_captures_client_unique').on(t.ownerId,t.installationId,t.clientCaptureId),index('page_captures_case_created').on(t.ownerId,t.caseId,t.createdAt,t.id)]);
 export const idempotencyRecords = pgTable('idempotency_records', { ownerId: owner(), route: text('route').notNull(), key: text('key').notNull(), requestHash: text('request_hash').notNull(), result: jsonb('result').notNull(), createdAt: created() }, (t) => [primaryKey({ columns: [t.ownerId, t.route, t.key] })]);

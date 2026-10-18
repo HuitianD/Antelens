@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import {AcceptedPageCaptureSchema,PageCaptureInputSchema,BrowserSiteGrantInputSchema} from './page-capture';
 import { AcceptedBrowserEventSchema, AcceptedRunSchema, ApiErrorSchema, ApiResponseSchema, AssessmentSchema, BrowserEventInputSchema, BrowserInstallationInputSchema, BrowserInstallationSchema, CaseDetailSchema, CaseSummarySchema, ConnectionSummarySchema, ConnectionSyncScopeSchema, DashboardSnapshotSchema, DisconnectionResultSchema, EvidenceDetailSchema, GoogleStartInputSchema, GoogleStartResponseSchema, MessageDetailSchema, MessageSummarySchema, PageSchema, RecheckInputSchema, RunDetailSchema, SystemCapabilitiesSchema, ViewedInputSchema, ActivityEventSchema } from './index';
 
 /** Generated from the same executable schemas used at ingress and publication. */
@@ -34,6 +35,8 @@ export function createOpenApiDocument() {
       '/v1/connections/{id}/scope': { get: operation(ConnectionSyncScopeSchema) },
       '/v1/browser/installations': { post: operation(BrowserInstallationSchema, BrowserInstallationInputSchema) },
       '/v1/browser/events': { post: operation(AcceptedBrowserEventSchema, BrowserEventInputSchema, true) },
+      '/v1/browser/site-grants': { post: operation(z.object({origin:z.url(),granted:z.boolean()}), BrowserSiteGrantInputSchema) },
+      '/v1/browser/captures': { post: operation(AcceptedPageCaptureSchema, PageCaptureInputSchema, true) },
       '/v1/events': { get: { security: [{ bearerAuth: [] }], responses: { '200': { description: 'Durable owner-scoped event stream', content: { 'text/event-stream': { schema: { type: 'string' } } } } } } },
     },
   };

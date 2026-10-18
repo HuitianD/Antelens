@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { browser } from 'wxt/browser';
 import { config } from './config';
+let client:ReturnType<typeof createClient>|undefined;
 export function authClient() {
   if (!config.supabaseUrl || !config.supabaseKey) throw new Error('Application sign-in is not configured.');
-  return createClient(config.supabaseUrl, config.supabaseKey, { auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storage: {
+  return client??=createClient(config.supabaseUrl, config.supabaseKey, { auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storage: {
     async getItem(key) { const value = (await browser.storage.session.get(key))[key]; return typeof value === 'string' ? value : null; },
     async setItem(key, value) { await browser.storage.session.set({ [key]: value }); },
     async removeItem(key) { await browser.storage.session.remove(key); },
@@ -21,6 +22,7 @@ export async function signIn() {
   const session = await auth.auth.exchangeCodeForSession(code);
   if (session.error) throw new Error('Sign-in expired. Try again.');
 }
+export async function signInWithPassword(email:string,password:string){const result=await authClient().auth.signInWithPassword({email,password});if(result.error||!result.data.session)throw new Error('Sign-in could not complete. Check your workspace email and password.');}
 export async function access() {
   if (config.mode === 'demo') return { owner: 'demo', token: '' };
   const { data, error } = await authClient().auth.getSession();

@@ -1,4 +1,5 @@
 import { defineConfig } from 'wxt';
+import { manifestKey } from './manifest-key';
 const apiOrigin = process.env.VITE_API_ORIGIN ?? 'http://127.0.0.1:4000';
 const mode = process.env.APP_MODE ?? 'live';
 if (mode === 'demo' && !['localhost', '127.0.0.1'].includes(new URL(apiOrigin).hostname)) throw new Error('Demo extensions require a loopback API.');
@@ -11,6 +12,7 @@ export default defineConfig({
     },
   },
   manifest: {
+    key: manifestKey,
     name: 'Before You', description: 'Investigate requests on sites you explicitly allow.', version: '0.1.0',
     permissions: ['storage', 'scripting', 'activeTab', 'identity'],
     host_permissions: [`${new URL(apiOrigin).origin}/*`],

@@ -18,6 +18,7 @@ export function EvidenceComparison({ detail }: { detail: CaseDetail }) {
         {messages.length ? messages.map(e => <QuoteRecord evidence={e} key={e.id} />) : <p className="evidence-missing">{detail.currentAssessment ? 'No message excerpt is cited in this assessment.' : 'No message evidence has been saved for this run.'}</p>}
       </div>
       <div className="comparison-column page-column"><h4><Globe2 size={16} />Page shows</h4>
+        {page?.inspection&&<p className="scope">{page.inspection.label}. Offline captured content only.</p>}
         {page ? <QuoteRecord evidence={page} /> : <p className="evidence-missing">{detail.currentAssessment ? 'No page observation is cited in this assessment.' : 'No page observation has been saved yet.'}</p>}
         {image && (image.artifactId || (isDemo && demoScreenshot(image))) && <EvidenceImage evidence={image} />}
       </div>
@@ -29,7 +30,7 @@ export function QuoteRecord({ evidence, anchor = true }: { evidence: Evidence; a
   return <article className="quote-record" id={anchor ? `evidence-${evidence.id}` : undefined}>
     <div className="quote-source">{displayHost(evidence.displayUrl) || evidence.sourceLabel}</div>
     {evidence.excerpt ? <blockquote>{evidence.excerpt.split(/(https?:\/\/[^\s]+)/g).map((text, i) => /^https?:\/\//.test(text) ? <span className="quote-url" key={i}>{text}</span> : text)}</blockquote> : <p className="evidence-missing">No text excerpt was saved.</p>}
-    <div className="quote-meta"><time dateTime={evidence.observedAt}>{time(evidence.observedAt)}</time><span>{evidence.provenance.execution === 'simulated' ? 'Demo evidence' : 'Captured excerpt'}</span></div>
+    <div className="quote-meta"><time dateTime={evidence.observedAt}>{time(evidence.observedAt)}</time><span>{evidence.inspection?.label??(evidence.provenance.execution === 'simulated' ? 'Demo evidence' : 'Captured excerpt')}</span></div>
   </article>;
 }
 
@@ -54,8 +55,8 @@ export function EvidenceImage({ evidence }: { evidence: Evidence }) {
     }).catch(() => { if (active) { setError('The saved screenshot could not be loaded. Refresh its access link and try again.'); setLoading(false); } });
     return () => { active = false; };
   }, [evidence.id, evidence.artifactId, sample, reload]);
-  const title = sample ? 'Demo screenshot' : 'Captured screenshot';
-  const caption = sample ? 'Illustrative fixture page. Not a live browser capture.' : `${evidence.sourceLabel} · ${time(evidence.observedAt)}`;
+  const title = sample ? 'Demo screenshot' : evidence.inspection?.label??'Captured screenshot';
+  const caption = sample ? 'Illustrative fixture page. Not a live browser capture.' : evidence.inspection?`Offline captured content. No live website, unseen-page, or sender verification. ${time(evidence.observedAt)}`:`${evidence.sourceLabel} · ${time(evidence.observedAt)}`;
   const retry = () => { setLoading(true); setReload(n => n + 1); };
   const imageError = () => { setLoading(false); setError('The image is unavailable or its access link expired. Refresh the image to try again.'); };
   return <figure className="screenshot-record">
