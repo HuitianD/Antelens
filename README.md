@@ -30,9 +30,32 @@ Look for **Demo data**: all messages, findings, screenshots, and investigation r
 
 Leave the terminal running during review. Stop it with **Ctrl+C**; disposable demo state persists in `.local/demo-state.json` for your next session. The worker processes queued changes independently of an open dashboard. See setup troubleshooting for installation, ports, and optional test commands.
 
-## Real integrations
+## Use your own accounts
 
-The authenticated path uses **Gmail** ingestion and owner-initiated **Chrome** capture, with optional email linking. Captures exclude cookies, tokens, entered values, hidden sensitive data and original scripts. **Supabase** provides authentication, owner-scoped records, private evidence storage and history. See [real-provider setup](docs/integrations.md).
+The demo above does not call Supabase, Gmail, Factory, Anthropic, or Daytona. To run Antelens against a real sign-in and real investigations, copy the template and fill the copy on this machine:
+
+```sh
+cp .env.example .env.local
+```
+
+That file is the repository-root `.env.local`. It is gitignored. Do not commit it, and do not paste its values into chat. Leave `APP_MODE=demo` in the file. Real mode is selected by the command, so filling in keys does not turn `pnpm dev:demo` into a live run:
+
+```sh
+pnpm dev:live
+```
+
+Open **http://127.0.0.1:3000** and sign in. The terminal must say **Live mode**. Startup stops until the Supabase fields below are present.
+
+| Connect this | Put the value in | Fields |
+| --- | --- | --- |
+| [Supabase](https://supabase.com/dashboard/projects) project: Project URL, publishable key, secret key, and the Postgres connection string. Set Authentication site URL to `http://127.0.0.1:3000`, then create the user who will sign in. | Root `.env.local` | `SUPABASE_URL`, `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`), `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` |
+| [Factory](https://docs.factory.com/model-independence/byok) account using Anthropic bring-your-own-key. The custom model display name must be exactly `Before You Claude`, and the model id `claude-sonnet-4-6`. | Root `.env.local` only. These stay on the worker. | `FACTORY_API_KEY`, `ANTHROPIC_API_KEY`, `CLAUDE_MODEL_ID=claude-sonnet-4-6`. Set `ANTHROPIC_WORKSPACE_ID` only when the Anthropic key is user-scoped. |
+| [Google Cloud OAuth client](https://console.cloud.google.com/apis/credentials) with the Gmail API enabled and scope `https://www.googleapis.com/auth/gmail.readonly`. Authorized redirect URI: `http://127.0.0.1:4000/v1/connections/gmail/callback`. | Root `.env.local`, then **Connections → Connect Gmail** in the dashboard. Generate the encryption key locally with `openssl rand -base64 32`. | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `CREDENTIAL_ENCRYPTION_KEY` |
+| [Daytona](https://www.daytona.io/) account, used when a Chrome capture is inspected offline. | Root `.env.local` | `DAYTONA_API_KEY`, `DAYTONA_SNAPSHOT` |
+
+Gmail supplies message text. A link inside a message is not opened. A page is inspected only after an explicit Chrome capture, and that inspection uses Daytona. Account clicks, consent-screen fields, and the private storage bucket are in [real-provider setup](docs/integrations.md).
+
+The Chrome extension has a second, public file: `apps/extension/.env.local`. Copy only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` into `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, and set `APP_MODE=live`. Do not put `FACTORY_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABASE_SECRET_KEY`, `DATABASE_URL`, or the Gmail client secret in the extension file.
 
 ## Factory Droid — the investigation agent inside Antelens
 
