@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { AcceptedRunSchema, AssessmentSchema, CaseDetailSchema, MessageDetailSchema, PageSchema, type Assessment, type CaseDetail, type MessageDetail } from '@beforeyou/contracts';
 import { isDemo, post, request } from '../lib/api';
 import { reconcileAssessmentHistory, reconcileCaseDetail } from '../lib/case-state';
+import { nextStepCopy, reasoningLines } from '../lib/next-step';
 import { Badge, DispositionTag, ErrorState, impactLabels, StateBadge, time, unassessedNote } from './presentation';
 import { EvidenceComparison, EvidenceImage, QuoteRecord, SourceLink } from './evidence-viewer';
 import { InvestigationProgress } from './investigation-progress';
@@ -67,6 +68,8 @@ export function CaseDetailPanel({ id, crumb, subject, revision, onClose, onRefre
   }
   const running = Boolean(detail?.activeRun);
   const recheckLabel = running ? 'Investigation in progress' : busy ? 'Queuing…' : 'Recheck request';
+  const step = a ? nextStepCopy(a) : null;
+  const reasoning = a ? reasoningLines(a) : null;
   const title = subject ?? original[0]?.title ?? detail?.case.title;
   return <DetailFrame label="Case detail" crumb={crumb} title={title} onClose={onClose} actions={isDemo && detail ? <button type="button" className="soft-btn compact" aria-label="Browser panel preview" aria-pressed={browser} onClick={() => setBrowser(b => !b)}><Globe2 size={14} /><span className="btn-text">Browser panel preview</span></button> : undefined}>
     {error && <ErrorState title="This case could not update" message={error} label="Case error" action={<button className="soft-btn" onClick={onRefresh}>Retry</button>} />}
@@ -77,6 +80,7 @@ export function CaseDetailPanel({ id, crumb, subject, revision, onClose, onRefre
         <h2 id="detail-title">{a?.finding.headline || unassessedNote(detail.case.latestRunStatus)}</h2>
         {a?.finding.consequence && <p className="finding-consequence">{a.finding.consequence}</p>}
         <p className="detail-subtitle">{a ? <><span>Version {a.version}</span><span>Checked <time dateTime={a.createdAt}>{time(a.createdAt)}</time></span></> : <span>No assessment yet</span>}</p>
+        {reasoning && <div className="reasoning"><h3>Reasoning</h3><p>{a?.finding.consequence ?? a?.finding.headline}</p>{(reasoning.checked.length > 0 || reasoning.limits.length > 0) && <ul>{[...reasoning.checked, ...reasoning.limits].map(line => <li key={line}>{line}</li>)}</ul>}</div>}
         <div className="primary-row">
           {a ? <button type="button" className="primary-btn" onClick={nextAction}>{a.nextAction.label}<ArrowRight size={15} /></button>
             : <button type="button" className="primary-btn" disabled={busy || running} onClick={() => void recheck('user_recheck')}><RefreshCw size={14} />{recheckLabel}</button>}
@@ -98,6 +102,8 @@ export function CaseDetailPanel({ id, crumb, subject, revision, onClose, onRefre
         <InvestigationProgress run={run} steps={detail.journey} />
         {run?.error && <ErrorState title="Investigation stopped" message={run.error.message} label="Investigation error" />}
         <section className="detail-section detail-action" id="verification"><h3>Your next step</h3>
+          {step && <p>{step.lead}</p>}
+          {step && step.reasons.length > 0 && <ul className="next-step-reasons">{step.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
           {a && <button type="button" className="soft-btn" disabled={busy || running} onClick={() => void recheck('user_recheck')}><RefreshCw size={14} />{recheckLabel}</button>}
           <details className="verification-note" id="verification-note" tabIndex={-1}><summary>Add a verification note <ChevronDown size={15} /></summary><label className="field-label" htmlFor="verification-note-text">What did you find?</label><textarea id="verification-note-text" maxLength={4000} placeholder="Record what you confirmed and where…" value={note} onChange={e => setNote(e.target.value)} /><button type="button" className="soft-btn" disabled={busy || running} onClick={() => void recheck('verification_requested')}>Save note and request recheck</button></details>
         </section>

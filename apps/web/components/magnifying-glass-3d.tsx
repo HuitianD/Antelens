@@ -13,6 +13,8 @@ const RIM_INNER = 0.8, RIM_OUTER = 1, RIM_DEPTH = 0.3, LENS_RADIUS = 0.81;
 /** What the lens refracts: the sidebar's own color, so the glass never samples the transparent canvas as black. */
 const LENS_BACKDROP = new Color('#e6e9ee');
 const SWAY = MathUtils.degToRad(25), SWAY_PERIOD = 14, TILT = MathUtils.degToRad(7);
+/** Processing turn: one revolution about every 4 s, eased in, and a critically damped settle back to rest. */
+const TURN = Math.PI * 2, SPIN_SPEED = TURN / 4, SPIN_EASE = 1.5, SETTLE_STIFFNESS = 4, SETTLE_DAMPING = 4;
 
 /** A rounded-rectangle cross-section traced counter-clockwise, so lathe normals face outward. */
 function roundedProfile(inner: number, outer: number, depth: number, corner: number, steps = 8) {
@@ -43,8 +45,10 @@ function gripProfile(start: number, length: number, radius: number, steps = 22) 
   return [new Vector2(0, start), ...side, ...cap];
 }
 
-function Glass({ animate }: { animate: boolean }) {
+function Glass({ animate, spinning }: { animate: boolean; spinning: boolean }) {
   const group = useRef<Group>(null), pointer = useRef({ x: 0, y: 0 }), tilt = useRef({ x: 0, y: 0 }), clock = useRef(0);
+  // Spin state lives in refs and is advanced only inside the frame loop.
+  const spinGroup = useRef<Group>(null), spin = useRef<{ angle: number; velocity: number; settleTo: number | null }>({ angle: 0, velocity: 0, settleTo: null });
   const { gl, invalidate } = useThree();
   const rim = useMemo(() => new LatheGeometry(roundedProfile(RIM_INNER, RIM_OUTER, RIM_DEPTH, 0.085), 128), []);
   const lens = useMemo(() => new LatheGeometry(lensProfile(LENS_RADIUS, 0.05, 0.018), 96), []);
@@ -63,18 +67,35 @@ function Glass({ animate }: { animate: boolean }) {
   }, [animate, gl]);
   useEffect(() => { invalidate(); }, [animate, invalidate]);
   useFrame((_, delta) => {
-    const g = group.current;
-    if (!g) return;
-    if (!animate) { g.rotation.set(0.1, -0.32, 0); return; }
-    clock.current += Math.min(delta, 0.1);
-    const ease = 1 - Math.exp(-2.5 * Math.min(delta, 0.1));
+    const g = group.current, outer = spinGroup.current, s = spin.current;
+    if (!g || !outer) return;
+    if (!animate) { s.angle = 0; s.velocity = 0; s.settleTo = null; outer.rotation.y = 0; g.rotation.set(0.1, -0.32, 0); return; }
+    const dt = Math.min(delta, 0.1);
+    if (spinning) {
+      // Accelerate toward a steady turn; the angle is kept within one revolution, which is visually seamless.
+      s.settleTo = null;
+      s.velocity += (SPIN_SPEED - s.velocity) * (1 - Math.exp(-SPIN_EASE * dt));
+      s.angle = (s.angle + s.velocity * dt) % TURN;
+    } else if (s.velocity !== 0 || s.angle !== 0) {
+      // Finish forward to the next full turn, never less than a quarter turn away, so the settle neither reverses nor overshoots.
+      if (s.settleTo === null) s.settleTo = TURN - s.angle >= Math.PI / 2 ? TURN : TURN * 2;
+      s.velocity += (SETTLE_STIFFNESS * (s.settleTo - s.angle) - SETTLE_DAMPING * s.velocity) * dt;
+      s.angle += s.velocity * dt;
+      if (Math.abs(s.settleTo - s.angle) < 1e-3 && Math.abs(s.velocity) < 1e-3) { s.angle = 0; s.velocity = 0; s.settleTo = null; }
+    }
+    outer.rotation.y = s.angle;
+    // Idle sway and pointer tilt fade out while turning and return as the turn settles, so they never fight the spin.
+    const idle = 1 - Math.min(1, Math.abs(s.velocity) / SPIN_SPEED);
+    clock.current += dt;
+    const ease = 1 - Math.exp(-2.5 * dt);
     tilt.current.x += (pointer.current.y * TILT - tilt.current.x) * ease;
     tilt.current.y += (pointer.current.x * TILT - tilt.current.y) * ease;
     const phase = (clock.current / SWAY_PERIOD) * Math.PI * 2;
-    g.rotation.y = Math.sin(phase) * SWAY + tilt.current.y;
-    g.rotation.x = 0.08 + Math.sin(phase * 0.5) * 0.04 + tilt.current.x;
+    g.rotation.y = (Math.sin(phase) * SWAY + tilt.current.y) * idle;
+    g.rotation.x = 0.08 + (Math.sin(phase * 0.5) * 0.04 + tilt.current.x) * idle;
   });
-  return <group ref={group}>
+  // The outer group turns about the vertical axis through the model's visual centre; the existing pose stays inside it.
+  return <group ref={spinGroup}><group ref={group}>
     {/* Offset so the lens and handle together sit centred in the frame. */}
     <group position={[-0.36, 0.36, 0]} rotation={[0, 0, 0]}>
       <mesh geometry={rim} rotation={[Math.PI / 2, 0, 0]}>
@@ -101,7 +122,7 @@ function Glass({ animate }: { animate: boolean }) {
         </mesh>
       </group>
     </group>
-  </group>;
+  </group></group>;
 }
 
 /** Soft studio: broad white panels, a pale floor bounce and one restrained blue rim panel. */
@@ -118,7 +139,7 @@ function Studio() {
   </Environment>;
 }
 
-export default function MagnifyingGlass3D({ active, reduced, onReady, onError }: { active: boolean; reduced: boolean; onReady: () => void; onError: () => void }) {
+export default function MagnifyingGlass3D({ active, reduced, spinning = false, onReady, onError }: { active: boolean; reduced: boolean; spinning?: boolean; onReady: () => void; onError: () => void }) {
   const animate = active && !reduced;
   return <Canvas
     frameloop={animate ? 'always' : 'demand'}
@@ -137,6 +158,6 @@ export default function MagnifyingGlass3D({ active, reduced, onReady, onError }:
     <directionalLight position={[3, 4, 5]} intensity={0.55} />
     <directionalLight position={[-3, 1.5, -4]} intensity={0.9} color="#9cc0ff" />
     <Studio />
-    <Glass animate={animate} />
+    <Glass animate={animate} spinning={spinning} />
   </Canvas>;
 }
