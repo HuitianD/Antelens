@@ -32,9 +32,17 @@ Leave the terminal running during review. Stop it with **Ctrl+C**; disposable de
 
 ## Real integrations
 
-The authenticated path is separate from the simulated quick start. **Gmail** imports authorized mail and schedules email-text assessments. **Chrome** captures visible content only after the owner grants a supported site and clicks **Check this page**; linking an email is optional. It excludes cookies, tokens, entered form values, hidden sensitive data, and original executable scripts.
+The authenticated path uses **Gmail** ingestion and owner-initiated **Chrome** capture, with optional email linking. Captures exclude cookies, tokens, entered values, hidden sensitive data and original scripts. **Supabase** provides authentication, owner-scoped records, private evidence storage and history. See [real-provider setup](docs/integrations.md).
 
-**Factory** is the running agent harness: its Droid SDK executes an explicitly configured Anthropic Claude model with restricted investigation tools and validated assessment output. **Daytona** receives the captured, self-contained bundle, renders an offline reconstruction using installed Chromium, and returns actual text and screenshot evidence. **Supabase** provides authentication, owner-scoped persistence, private evidence storage, and assessment history. These controlled live paths have saved verification receipts; simulated tests alone do not establish their success. Follow the [integration guide](docs/integrations.md) for credentials, consent, and extension setup.
+## Factory Droid — the investigation agent inside Antelens
+
+**Factory's Droid SDK runs each live investigation in the background worker**, using an explicitly configured Claude model through Anthropic BYOK. Restricted tools let the agent read case context, request observations, save evidence and compare exact source excerpts. It proposes a finding and next action; the server validates evidence references and verdict rules before publication. Factory supplies the agent execution and tool-calling workflow behind the assessment. [See the runtime implementation](packages/agent/src/runtime.ts).
+
+## Daytona — isolated browser inspection and evidence
+
+**Daytona produces the captured-page evidence the agent uses.** The backend uploads a self-contained capture bundle through the Daytona SDK into a network-blocked sandbox. Installed Playwright/Chromium renders the reconstruction offline and returns page text and a screenshot. The backend verifies artifact hashes and capture identity, then stores the evidence in Supabase for the dashboard's comparison and zoomable screenshot. [See the Daytona adapter](packages/agent/src/daytona-captured.ts) and [browser inspection script](deployment/daytona/offline-browser.mjs).
+
+Both integrations ran in the [verified rental investigation](docs/verification.md#final-rehearsal-and-remaining-gates): a $40 email request compared with captured $29/month terms. The credential-free quick start simulates this workflow; it does not call either provider.
 
 ## Current limits
 
