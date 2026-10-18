@@ -43,6 +43,6 @@ export async function access() {
     data = refreshed.data;
     error = refreshed.error;
   }
-  if (error || !data.session) throw new Error('Sign in to Before You to connect this browser.');
+  if (error || !data.session) throw new Error('Sign in to Antelens to connect this browser.');
   return { owner: data.session.user.id, token: data.session.access_token };
 }

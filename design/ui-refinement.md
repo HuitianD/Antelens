@@ -12,7 +12,7 @@ Structure follows a light-mode inbox: Linear's list/detail layout, Attio's restr
 
 ```text
 | Nav (228px)        | List (400px)                         | Detail                               |
-| Before You         | Overview  3 need attention  [Search] | Overview / Original subject     [x]  |
+| Antelens           | Overview  3 need attention  [Search] | Overview / Original subject     [x]  |
 | Overview         3 | [Money][Identity][Account][Downloads]| [Confirm first] [Money]              |
 |   All items      6 | Subject                 Received 9:12| Finding headline                     |
 |   Pause here     1 | Sender                               | Consequence                          |

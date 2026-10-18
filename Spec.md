@@ -1,4 +1,4 @@
-# Before You — Product Specification
+# Antelens — Product Specification
 
 Status: Approved product direction; implementation not yet verified.
 
@@ -6,7 +6,7 @@ This document defines product behavior and acceptance. `Contracts.md` defines th
 
 ## 1. Product definition
 
-Before You automatically investigates requests before a person pays, shares identity information, grants account access, or downloads software. It turns incoming messages and supported webpage observations into concise action cards backed by inspectable evidence. New evidence updates the existing case and preserves the earlier judgment.
+Antelens automatically investigates requests before a person pays, shares identity information, grants account access, or downloads software. It turns incoming messages and supported webpage observations into concise action cards backed by inspectable evidence. New evidence updates the existing case and preserves the earlier judgment.
 
 The core loop is:
 

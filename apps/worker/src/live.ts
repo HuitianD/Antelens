@@ -147,7 +147,7 @@ export async function startLiveWorker() {
     for (const signal of ['SIGINT', 'SIGTERM'] as const)
         process.on(signal, () => { stopped = true; controller.abort(); });
     let lastSync = 0, lastRecovery = 0, syncTask: Promise<void> | undefined;
-    console.info(`Before You worker · Live mode — durable queue and independent Gmail polling · browser runtime: ${browserRuntimeFromEnv(process.env.BROWSER_RUNTIME) === 'local_controlled' ? 'local controlled-fixture browser (not Daytona)' : 'Daytona sandbox'} · Gmail import: ${gmailTestModeEnabled() ? 'test mode, subjects containing [BY-TEST] only' : 'normal mailbox sync'}`);
+    console.info(`Antelens worker · Live mode — durable queue and independent Gmail polling · browser runtime: ${browserRuntimeFromEnv(process.env.BROWSER_RUNTIME) === 'local_controlled' ? 'local controlled-fixture browser (not Daytona)' : 'Daytona sandbox'} · Gmail import: ${gmailTestModeEnabled() ? 'test mode, subjects containing [BY-TEST] only' : 'normal mailbox sync'}`);
     while (!stopped) {
         try {
             await pump();

@@ -1,8 +1,8 @@
-# Before You
+# Antelens
 
-Before You assesses consequential email requests and pages you choose to capture before you pay, share sensitive information, grant account access, or download something. It shows a concrete finding, the supporting source evidence, and a next action, so you can decide what to do with the request.
+Antelens assesses consequential email requests and pages you choose to capture before you pay, share sensitive information, grant account access, or download something. It shows a concrete finding, the supporting source evidence, and a next action, so you can decide what to do with the request.
 
-![Before You dashboard showing a rental-fee comparison with labeled simulated evidence](docs/screenshots/release-dashboard.jpg)
+![Antelens dashboard showing a rental-fee comparison with labeled simulated evidence](docs/screenshots/release-dashboard.jpg)
 
 - **Understand the request.** Review consequential emails in one workspace, filter by impact, and distinguish requests needing attention from messages requiring no action.
 - **Inspect the evidence.** Read exact saved excerpts, enlarge screenshots, and compare an email with an explicitly linked page capture. Standalone page checks need no email.

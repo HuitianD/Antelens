@@ -33,7 +33,7 @@ Do not restart working services, reset/seed the database, send mail, rotate cred
 
 3. **Only for a fully stopped stack**, `pnpm dev:capture` starts web, API, persistent worker and fixture host together. It validates existing real configuration and forces live child processes even though `.env.local` defaults to demo. Never run it alongside the existing live stack. If only the fixture host is absent while the application/worker are healthy, `pnpm exec tsx scripts/fixture-host.ts` starts that one service. Investigate any other partial failure before adding processes.
 
-4. **Use the correct mode and URL.** Open `http://127.0.0.1:3000` for the real capture demonstration and sign in with the existing Before You account. The extension must use the same account for the Gmail case to appear. Gmail consent is separate; preserve the connected `[BY-TEST]` mailbox. Do not run bare `pnpm dev`, which selects simulation on the default ports.
+4. **Use the correct mode and URL.** Open `http://127.0.0.1:3000` for the real capture demonstration and sign in with the existing Antelens account. The extension must use the same account for the Gmail case to appear. Gmail consent is separate; preserve the connected `[BY-TEST]` mailbox. Do not run bare `pnpm dev`, which selects simulation on the default ports.
 
    The optional no-key UI preview belongs on **3002/4002** and displays **Demo data**. Only if it is not already running:
 
@@ -47,7 +47,7 @@ Do not restart working services, reset/seed the database, send mail, rotate cred
 
    `/Users/dsteven/Desktop/BeforeYou/apps/extension/.output/chrome-mv3`
 
-   Build command: `pnpm --filter @beforeyou/extension build`. At `chrome://extensions`, enable **Developer mode**, use **Load unpacked** for the first installation, or click **Reload** on the existing **Before You** card. Confirm ID `oonbnpicjomfiddbiaegfdpdjiofdccn`; do not remove/reinstall or clear extension storage to refresh a build. Pin Before You through Chrome's Extensions menu if necessary. The final production build and Reload were completed in the existing owner Chrome profile. Reload is required after future extension builds.
+   Build command: `pnpm --filter @beforeyou/extension build`. At `chrome://extensions`, enable **Developer mode**, use **Load unpacked** for the first installation, or click **Reload** on the existing **Antelens** card. Confirm ID `oonbnpicjomfiddbiaegfdpdjiofdccn`; do not remove/reinstall or clear extension storage to refresh a build. Pin Antelens through Chrome's Extensions menu if necessary. The final production build and Reload were completed in the existing owner Chrome profile. Reload is required after future extension builds.
 
 6. **Sign in and grant only the controlled site.** Open `http://127.0.0.1:4080/fixtures/SC-01?monthlyFee=29`; open the toolbar popup; enter the existing account's Email/Password in its local form and click **Sign in** if requested. Click **Allow this site**, then accept the native prompt only for `http://127.0.0.1:4080` if shown. Existing grants need no repeat consent. Google application login is disabled; no new OAuth callback is required. API transport permission does not grant page observation.
 

@@ -54,7 +54,7 @@ The existing Gmail connection and test-mail import were completed. `GMAIL_TEST_M
 For a new or expired connection only:
 
 1. [Google Cloud credentials](https://console.cloud.google.com/apis/credentials): use the designated project; enable Gmail API under APIs & Services → Library.
-2. Google Auth Platform → **Branding**: Before You and owner contact fields; **Audience → Test users**: intended mailbox; **Data Access**: only `https://www.googleapis.com/auth/gmail.readonly`.
+2. Google Auth Platform → **Branding**: Antelens and owner contact fields; **Audience → Test users**: intended mailbox; **Data Access**: only `https://www.googleapis.com/auth/gmail.readonly`. An already registered consent screen keeps its current Google branding until that field is edited there.
 3. Web OAuth client's **Authorized redirect URI**: `http://127.0.0.1:4000/v1/connections/gmail/callback`. This server flow needs no JavaScript origin. Destination fields in root `.env.local`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`; `CREDENTIAL_ENCRYPTION_KEY` stays server-side.
 4. Dashboard **Connections → Connect Gmail** (or the displayed reconnect action) → owner completes consent. Do not send another email, change scopes or disconnect the working mailbox during preparation.
 
@@ -92,7 +92,7 @@ Build only when needed: `pnpm --filter @beforeyou/extension build`. Load/reload 
 
 `apps/extension/.env.local` is a dedicated public allowlist: `APP_MODE=live`, `VITE_API_ORIGIN=http://127.0.0.1:4000`, `VITE_WEB_ORIGIN=http://127.0.0.1:3000`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPPORTED_ORIGINS=http://127.0.0.1:4080`, `VITE_CAPTURE_ORIGIN=http://127.0.0.1:4080`, `VITE_CAPTURE_PATH=/fixtures/SC-01`, `VITE_GOOGLE_SIGN_IN_ENABLED=false`. Root server secrets must not enter this file or browser bundle. Root production builds preserve these settings unless the deployment/CLI explicitly overrides them.
 
-Current profile flow: sign in with the same Before You account, open the controlled page, click **Allow this site**, accept the native prompt if requested, then **Check this page**. Default is standalone. Expand **Link to an email · Optional** and select the rental email only for comparison. Site permission and owner-scoped server grant are separate from API transport permission; unsupported sites imply no active protection. Removal revokes subsequent observation.
+Current profile flow: sign in with the same Antelens account, open the controlled page, click **Allow this site**, accept the native prompt if requested, then **Check this page**. Default is standalone. Expand **Link to an email · Optional** and select the rental email only for comparison. Site permission and owner-scoped server grant are separate from API transport permission; unsupported sites imply no active protection. Removal revokes subsequent observation.
 
 Auth sessions live under `beforeyou.auth.` in trusted extension local storage and survive popup closure; passwords are not stored. Owner/page-scoped receipt IDs/metadata also persist locally so exact-run terminal state can be restored. Session tab state is separate. Gmail tokens, provider keys, page bundles and generated prose do not belong in these receipts. See [standalone behavior](standalone-page-checks.md) and [demo clicks](demo-script.md).
 

@@ -1,4 +1,4 @@
-# Before You — Coding Agent Instructions
+# Antelens — Coding Agent Instructions
 
 This file governs implementation work in this repository. The repository may initially contain only a README and these handoff documents. Build the framework and working product; do not ask the owner to do implementation work that available tools can perform.
 

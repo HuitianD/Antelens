@@ -12,7 +12,7 @@ export function createOpenApiDocument() {
     responses: { [accepted ? '202' : '200']: { description: accepted ? 'Accepted' : 'Success', content: { 'application/json': { schema: json(ApiResponseSchema(response)) } } }, default: { description: 'Typed error', content: { 'application/json': { schema: json(ApiErrorSchema) } } } },
   });
   const document = {
-    openapi: '3.1.0', info: { title: 'Before You API', version: '1.0.0' }, servers: [{ url: 'http://127.0.0.1:4000' }],
+    openapi: '3.1.0', info: { title: 'Antelens API', version: '1.0.0' }, servers: [{ url: 'http://127.0.0.1:4000' }],
     components: { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } }, schemas: Object.fromEntries(Object.entries(schemas).map(([name, schema]) => [name, json(schema)])) },
     paths: {
       '/health/live': { get: { responses: { '200': { description: 'Process alive' } } } },

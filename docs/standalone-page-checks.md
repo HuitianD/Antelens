@@ -1,6 +1,6 @@
 # Standalone captured-page checks
 
-Reload **Before You** at `chrome://extensions`. The build directory remains `/Users/dsteven/Desktop/BeforeYou/apps/extension/.output/chrome-mv3`, extension ID `oonbnpicjomfiddbiaegfdpdjiofdccn`. Existing Gmail authorization and sign-in configuration are unchanged.
+Reload **Antelens** at `chrome://extensions`. The build directory remains `/Users/dsteven/Desktop/BeforeYou/apps/extension/.output/chrome-mv3`, extension ID `oonbnpicjomfiddbiaegfdpdjiofdccn`. Existing Gmail authorization and sign-in configuration are unchanged.
 
 Open `http://127.0.0.1:4080/fixtures/SC-01?monthlyFee=29`, allow the site if needed, and click **Check this page**. No email connection or email case is required. The dashboard creates an owner-scoped browser case using the page title and URL. **Link to an email · Optional** is collapsed; selecting an existing email case explicitly retains the comparison flow. Closing that control clears the selection.
 

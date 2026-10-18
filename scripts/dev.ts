@@ -16,7 +16,7 @@ if(capturedPage){
 }
 const webOrigin=process.env.WEB_ORIGIN||'http://127.0.0.1:3000',apiOrigin=process.env.API_ORIGIN||'http://127.0.0.1:4000';
 const env={...process.env,APP_MODE:mode,NEXT_PUBLIC_APP_MODE:mode,WEB_ORIGIN:webOrigin,API_ORIGIN:apiOrigin,NEXT_PUBLIC_API_ORIGIN:apiOrigin,PORT:process.env.PORT||new URL(webOrigin).port||'3000',API_PORT:process.env.API_PORT||new URL(apiOrigin).port||'4000',DEMO_DATA_PATH:resolve(process.env.DEMO_DATA_PATH||'.local/demo-state.json')};
-console.log(mode==='demo'?'Before You · Demo data · Synthetic sources and simulated investigations. Local state persists in .local/demo-state.json.':'Before You · Live mode · Real authentication and configured providers.');
+console.log(mode==='demo'?'Antelens · Demo data · Synthetic sources and simulated investigations. Local state persists in .local/demo-state.json.':'Antelens · Live mode · Real authentication and configured providers.');
 console.log(`Dashboard: ${webOrigin}`);
 function launch(args:string[]){const command=pnpmCommand(args);return spawn(command.command,command.args,{env,stdio:'inherit',detached:process.platform!=='win32'})}
 const children=['api','worker','web'].map(name=>launch(['--filter',`@beforeyou/${name}`,'dev']));
