@@ -43,7 +43,8 @@ All visible demo findings are `synthetic/simulated`. The browser-panel preview d
 | Factory Claude BYOK (Droid CLI 0.212.1, `claude-sonnet-4-6`) | Live-verified: SC-01 triage, investigation tools, evidence-backed `pause_here` assessment, Supabase persistence, and dashboard display (2026-10-18) |
 | Daytona browser sandbox | Real offline bundle upload, Chromium rendering, evidence download and cleanup verified on Tier 1. General website egress remains blocked; normal Gmail runtime retained |
 | Connected captured-page checkpoint | Real Gmail case → durable queue → Factory/Claude + offline Daytona → Supabase evidence and assessment revisions verified at $29/$39. [Load and review the extension](docs/captured-page-demo.md) |
-| Chrome MV3 extension | Production build, actual unpacked ID, sign-in UI, exact CORS and capture privacy verified; owner-profile authentication/site consent/capture pending |
+| Standalone browser checks | Real zero-email extension flow, Daytona/Claude evidence, same-case $29/$39 rechecks, history and popup reopen verified. Version 6 screenshot-only citations resolve their exact saved companion text |
+| Chrome MV3 extension | Default standalone browser checks; collapsed optional email linking; exact-page rechecks and saved run-state restoration. [Reload/review guide](docs/standalone-page-checks.md). Existing owner-profile linked capture reached version 6 |
 | Supabase Auth, PostgreSQL, private Storage | Configured development project; tracked capture migration and real private screenshot persistence/download verified. Owner-profile flow remains a separate checkpoint |
 | Railway deployment | Configuration prepared; no deployment or paid resource created |
 
@@ -84,4 +85,4 @@ Supabase application sign-in and Gmail mailbox consent are separate flows. Gmail
 
 Factory is the actual runtime harness, configured for a specific Anthropic Claude BYOK model. The worker inventories and restricts tools before source content is sent. Daytona hosts the isolated browser; the trusted backend stores run state and evidence. The adapters stop before login, payments, form submissions, authorization grants, or executing downloads. Supported destinations and redirect/IP restrictions are enforced outside the model prompt.
 
-Live verification has not run. [Compatibility notes](docs/compatibility.md), [integration handoff](docs/integrations.md), and [deployment configuration](deployment) record the selected versions and remaining account gates. Font licenses accompany the unchanged reference font files in `apps/web/public/fonts`; the original HTML remains at the root and in `design/reference`.
+Controlled live capture verification is recorded in the [standalone check report](docs/standalone-page-checks.md). [Compatibility notes](docs/compatibility.md), [integration handoff](docs/integrations.md), and [deployment configuration](deployment) record the selected versions and remaining release gates. Font licenses accompany the unchanged reference font files in `apps/web/public/fonts`; the original HTML remains at the root and in `design/reference`.

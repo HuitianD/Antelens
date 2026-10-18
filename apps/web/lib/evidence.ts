@@ -8,8 +8,11 @@ export function comparisonEvidence(detail: CaseDetail) {
   const messages = cited.filter(e => e.kind === 'message_excerpt');
   const pages = cited.filter(e => ['page_excerpt', 'permission_request', 'download_metadata', 'form_field'].includes(e.kind));
   const action = detail.currentAssessment?.nextAction;
-  const page = pages.find(e => action?.kind === 'review_evidence' && e.id === action.evidenceId) ?? pages[0] ?? cited.find(e => e.kind === 'screenshot');
-  return { messages, page, cited };
+  const selected = pages.find(e => e.excerpt?.trim()&&action?.kind === 'review_evidence' && e.id === action.evidenceId) ?? pages.find(e=>e.excerpt?.trim()) ?? cited.find(e => e.kind === 'screenshot');
+  // A screenshot has no text field. Resolve only the immutable text observation from that exact capture.
+  const companion=selected?.kind==='screenshot'&&selected.inspection?detail.evidence.find(e=>e.kind==='page_excerpt'&&e.excerpt?.trim()&&e.caseId===selected.caseId&&e.runId===selected.runId&&e.sourceEventId===selected.sourceEventId&&e.displayUrl===selected.displayUrl&&e.inspection?.captureId===selected.inspection!.captureId&&e.inspection.bundleHash===selected.inspection!.bundleHash):undefined;
+  const page=companion??selected;
+  return { messages, page, cited, companionText:Boolean(companion) };
 }
 
 export function demoScreenshot(evidence: Evidence): string | null {

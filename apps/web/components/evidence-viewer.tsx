@@ -8,18 +8,20 @@ import { comparisonEvidence, demoScreenshot, displayHost } from '../lib/evidence
 import { ErrorState, time } from './presentation';
 
 export function EvidenceComparison({ detail }: { detail: CaseDetail }) {
-  const { messages, page } = comparisonEvidence(detail);
-  const screenshots = page ? detail.evidence.filter(e => e.kind === 'screenshot' && e.artifactId && e.runId === page.runId && e.displayUrl === page.displayUrl) : [];
+  const { messages, page,companionText } = comparisonEvidence(detail);
+  const linkedEmail=detail.case.sourceKinds.includes('gmail');
+  const screenshots = page ? detail.evidence.filter(e => e.kind === 'screenshot' && e.artifactId && e.runId === page.runId && e.displayUrl === page.displayUrl&&(!page.inspection||(e.inspection?.captureId===page.inspection.captureId&&e.inspection.bundleHash===page.inspection.bundleHash))) : [];
   const image = screenshots.find(e => e.stepId === page?.stepId) ?? screenshots[0] ?? page;
   return <section className="detail-section comparison-section" id="comparison" aria-labelledby="comparison-title">
     <div className="detail-section-heading"><h3 id="comparison-title">Evidence</h3><span>{detail.currentAssessment?.provenance.execution === 'simulated' ? 'Simulated observations' : 'Source records'}</span></div>
     <div className="evidence-comparison">
-      <div className="comparison-column message-column"><h4><Mail size={16} />Message says</h4>
+      {linkedEmail&&<div className="comparison-column message-column"><h4><Mail size={16} />Message says</h4>
         {messages.length ? messages.map(e => <QuoteRecord evidence={e} key={e.id} />) : <p className="evidence-missing">{detail.currentAssessment ? 'No message excerpt is cited in this assessment.' : 'No message evidence has been saved for this run.'}</p>}
-      </div>
-      <div className="comparison-column page-column"><h4><Globe2 size={16} />Page shows</h4>
+      </div>}
+      <div className="comparison-column page-column" style={linkedEmail?undefined:{gridColumn:'1 / -1'}}><h4><Globe2 size={16} />Page shows</h4>
         {page?.inspection&&<p className="scope">{page.inspection.label}. Offline captured content only.</p>}
-        {page ? <QuoteRecord evidence={page} /> : <p className="evidence-missing">{detail.currentAssessment ? 'No page observation is cited in this assessment.' : 'No page observation has been saved yet.'}</p>}
+        {companionText&&<p className="scope">Saved text from the same capture as the cited screenshot.</p>}
+        {page?.excerpt ? <QuoteRecord evidence={page} /> : <p className="evidence-missing">{page?.kind==='screenshot'?'This assessment cites a screenshot; no matching page-text record was saved.':detail.currentAssessment ? 'No page observation is cited in this assessment.' : 'No page observation has been saved yet.'}</p>}
         {image && (image.artifactId || (isDemo && demoScreenshot(image))) && <EvidenceImage evidence={image} />}
       </div>
     </div>

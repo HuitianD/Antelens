@@ -41,3 +41,19 @@ test('a live or user-origin observation can never receive the illustrative demo 
   assert.equal(demoScreenshot({ ...page, provenance: { dataOrigin: 'user', execution: 'simulated' } }), null);
   assert.equal(demoScreenshot({ ...page, displayUrl: 'https://another.example.test/' }), null);
 });
+
+test('a screenshot-only citation resolves exact persisted text from its capture, never assessment prose or another run',()=>{
+ const detail=snapshot(),page=record('page_excerpt',currentRun,'Stored page text: membership $29 per month.');
+ const inspection={method:'captured_page_daytona' as const,label:'Captured page inspected in Daytona' as const,captureId:randomUUID(),bundleHash:'b'.repeat(64),sandboxId:'mock-evidence-test',capturedAt:date,inspectedAt:date,networkRequests:0 as const};
+ page.inspection=inspection;
+ const screenshot={...record('screenshot'),excerpt:null,inspection};
+ detail.currentAssessment=AssessmentSchema.parse({id:randomUUID(),caseId,runId:currentRun,version:6,sourceRevision:1,verdict:'confirm_first',impacts:['money'],finding:{headline:'Generated finding that is not evidence.',consequence:null,evidenceIds:[screenshot.id]},nextAction:{kind:'review_evidence',label:'Review screenshot',evidenceId:screenshot.id},checkedScope:['Generated checked-scope prose that must never fill an excerpt.'],limitations:[],changeSummary:null,supersedesAssessmentId:null,createdAt:date,provenance});
+ const wrongCapture={...page,id:randomUUID(),inspection:{...inspection,captureId:randomUUID()},excerpt:'Unrelated capture'};
+ const wrongRun={...page,id:randomUUID(),runId:otherRun,excerpt:'Old run text'};
+ detail.evidence=[wrongCapture,wrongRun,screenshot,page];
+ const comparison=comparisonEvidence(detail);
+ assert.equal(comparison.page,page);assert.equal(comparison.companionText,true);
+ assert.deepEqual(comparison.cited,[screenshot]);
+ detail.evidence=[wrongCapture,wrongRun,screenshot];
+ assert.equal(comparisonEvidence(detail).page,screenshot);assert.equal(comparisonEvidence(detail).companionText,false);
+});

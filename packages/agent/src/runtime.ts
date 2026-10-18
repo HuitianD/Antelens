@@ -21,6 +21,7 @@ const BYOK_DISPLAY_NAME = 'Before You Claude';
 const BROWSER_UNAVAILABLE = 'Linked pages were not opened. The isolated browser is unavailable, and the local browser does not open links from real messages.';
 const MESSAGE_ONLY_PROMPT = 'Investigate this case from its message content only. Begin with get_case_context. Linked pages cannot be opened for this case, so do not call browser tools. Base any finding on what the message itself asks for, cite its message_excerpt evidence IDs, state in checkedScope that only the message text was reviewed, and call finish_investigation.';
 const CAPTURE_PROMPT = 'Compare what the email mentions with what the captured page shows. Use factual wording; do not infer intent, deliberate withholding, sender identity, or actual enrollment. The screenshot is an offline reconstruction, not an image of the original website. No unseen pages or actions are verified. Cite both the email message_excerpt and the current captured-page evidence. Use exact observed fees and do not copy prior assessment amounts. Record the offline limitation and call finish_investigation.';
+const STANDALONE_CAPTURE_PROMPT = 'Analyze only this captured page. No email is linked: do not refer to an email, sender claims, omitted email terms, or a discrepancy with a message. Identify material visible recurring charges, renewal/cancellation terms, and sensitive-information requests using exact saved page_excerpt evidence. A disclosed subscription is not evidence of fraud or deception. A factual confirm_first finding may surface a material commitment for review without alleging wrongdoing; do not invent a concern. If no supported finding can be published, use a null verdict with the offline limitation. Do not publish No issues found while inspection is limited. The screenshot is an offline reconstruction; live-site state, unseen pages, actions and sender identity are not verified. Cite the current page_excerpt (a screenshot alone is insufficient), then call finish_investigation.';
 const unavailableBrowser: InvestigationBrowser = {
   observe: async () => { throw new AgentError('SANDBOX_NETWORK_BLOCKED', BROWSER_UNAVAILABLE); },
   close: async () => {},
@@ -119,6 +120,7 @@ export function createLiveAgent(config: AgentConfig): InvestigationAgent {
   }
   async function investigate(input: InvestigationInput): Promise<InvestigationResult> {
     const offline=Boolean(input.capturedPage);
+    const linkedEmail=offline&&input.sources.some(source=>source.kind==='gmail');
     const local = !offline && config.browserRuntime === 'local_controlled';
     if (!offline && !config.allowedDomains.length) throw new AgentError('CONFIG_MISSING', 'A supported-site allowlist is required.');
     if (local && !config.controlledFixtureOrigin) throw new AgentError('CONFIG_MISSING', 'The local browser requires the controlled fixture origin.');
@@ -191,14 +193,18 @@ export function createLiveAgent(config: AgentConfig): InvestigationAgent {
         if (nextAction?.kind === 'open_source' && !input.sources.some(s => s.id === nextAction.sourceEventId)) throw new AgentError('OUTPUT_INVALID', 'The next action references an unauthorized source.');
         if (candidate.verdict && !candidate.finding?.evidenceIds.length) throw new AgentError('OUTPUT_INVALID', 'A finding must cite observed evidence.');
         if (candidate.verdict === 'no_issues_found' && (limitations.length || candidate.limitations.length || !handles.size)) throw new AgentError('OUTPUT_INVALID', 'Incomplete observations cannot support No issues found.');
-        if(offline&&candidate.verdict){const cited=candidate.finding!.evidenceIds.map(id=>evidence.get(id)!);if(!cited.some(e=>e.inspection?.method==='captured_page_daytona')||!cited.some(e=>e.kind==='message_excerpt'&&input.sources.some(s=>s.id===e.sourceEventId&&s.kind!=='browser')))throw new AgentError('OUTPUT_INVALID','The comparison must cite both email evidence and the captured page inspected in Daytona.');}
+        if(offline&&candidate.verdict){
+          const cited=candidate.finding!.evidenceIds.map(id=>evidence.get(id)!);
+          if(!cited.some(e=>e.kind==='page_excerpt'&&e.excerpt?.trim()&&e.runId===input.runId&&e.inspection?.captureId===input.capturedPage!.id))throw new AgentError('OUTPUT_INVALID','Cite the saved page_excerpt from this Daytona capture. A screenshot alone does not cite page text.');
+          if(linkedEmail&&!cited.some(e=>e.kind==='message_excerpt'&&input.sources.some(s=>s.id===e.sourceEventId&&s.kind==='gmail')))throw new AgentError('OUTPUT_INVALID','The linked comparison must also cite the email message_excerpt.');
+        }
         proposal = { ...candidate,checkedScope:offline?[CAPTURE_LABEL,...candidate.checkedScope]:candidate.checkedScope, limitations: [...candidate.limitations, ...limitations] }; return { accepted: true };
       })),
     ];
     try {
       session = await sessionFor(cwd, createSdkMcpServer({ name: 'beforeyou', tools }));
       for (let attempt = 0; attempt < 2 && !proposal; attempt++) {
-        for await (const message of session.stream(attempt ? 'Your output was not accepted. Make one correction using only existing evidence, then call finish_investigation. If checks are incomplete, use a null verdict with explicit limitations.' : offline ? `${CAPTURE_PROMPT} Begin with get_case_context, then call start_browser with sourceEventId=${input.capturedPage!.sourceEventId} and linkIndex=0. Do not use any other source link.` : messageOnly ? MESSAGE_ONLY_PROMPT : 'Investigate this case. Begin with get_case_context, inspect accessible source links, capture evidence, compare the request with observed terms, and call finish_investigation.', { abortSignal: AbortSignal.any([...(input.signal ? [input.signal] : []), budgetAbort.signal, AbortSignal.timeout(Math.max(1, (config.timeoutMs ?? 120000) - (Date.now() - started)))]) })) {
+        for await (const message of session.stream(attempt ? 'Your output was not accepted. Make one correction using only existing evidence, then call finish_investigation. If checks are incomplete, use a null verdict with explicit limitations.' : offline ? `${linkedEmail?CAPTURE_PROMPT+' Cite the saved page_excerpt as well as the email; a screenshot alone is insufficient.':STANDALONE_CAPTURE_PROMPT} Begin with get_case_context, then call start_browser with sourceEventId=${input.capturedPage!.sourceEventId} and linkIndex=0. Do not use any other source link.` : messageOnly ? MESSAGE_ONLY_PROMPT : 'Investigate this case. Begin with get_case_context, inspect accessible source links, capture evidence, compare the request with observed terms, and call finish_investigation.', { abortSignal: AbortSignal.any([...(input.signal ? [input.signal] : []), budgetAbort.signal, AbortSignal.timeout(Math.max(1, (config.timeoutMs ?? 120000) - (Date.now() - started)))]) })) {
           if (message.type === 'result' && !message.success) throw new AgentError('PROVIDER_UNAVAILABLE', 'The Factory investigation did not complete.');
         }
       }

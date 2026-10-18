@@ -1,6 +1,6 @@
 {
   "name":"@beforeyou/extension","version":"0.1.0","private":true,"type":"module",
-  "scripts":{"dev":"wxt","build":"wxt build","typecheck":"wxt prepare && tsc --noEmit"},
+  "scripts":{"dev":"wxt","build":"wxt build","typecheck":"wxt prepare && tsc --noEmit","test":"node --import tsx --test src/*.test.ts"},
   "dependencies":{"@beforeyou/contracts":"workspace:*","@supabase/supabase-js":"2.118.0","react":"19.2.0","react-dom":"19.2.0"},
   "devDependencies":{"@types/react":"19.2.2","@types/react-dom":"19.2.2","@wxt-dev/module-react":"1.2.2","wxt":"0.21.4","typescript":"5.9.3"}
 }

@@ -206,7 +206,7 @@ export class PostgresRepository {
     const result = await this.pool.query("SELECT DISTINCT c.dto FROM source_events incoming JOIN source_events prior ON prior.owner_id=incoming.owner_id AND prior.connection_id=incoming.connection_id AND ((incoming.kind='gmail' AND incoming.external_thread_id IS NOT NULL AND prior.external_thread_id=incoming.external_thread_id) OR (incoming.kind='browser' AND incoming.original_url IS NOT NULL AND prior.original_url=incoming.original_url)) JOIN case_sources cs ON cs.owner_id=prior.owner_id AND cs.source_event_id=prior.id JOIN cases c ON c.owner_id=cs.owner_id AND c.id=cs.case_id WHERE incoming.owner_id=$1 AND incoming.id=$2", [ownerId, sourceId]);
     return result.rows.map((row) => CaseSummarySchema.parse(row.dto));
   }
-  /** A user-selected existing email case is authoritative; the model never chooses the capture's ownership or case. */
+  /** Captures create browser cases by default. Only explicit owner-scoped IDs can reuse/link an existing case. */
   async ingestCapturedPage(ownerId:string,input:PageCaptureInput,config:RunConfiguration,dataOrigin:SourceEvent['dataOrigin']='synthetic'):Promise<AcceptedPageCapture> {
     const parsed=PageCaptureInputSchema.parse(input);
     const requestHash=hash(JSON.stringify(parsed));
@@ -219,21 +219,26 @@ export class PostgresRepository {
       const browserConnection=installation.rows[0];
       if(!browserConnection)throw new RepositoryError('CONNECTION_REQUIRED','Register or reconnect this browser installation.');
       if(!ConnectionSummarySchema.parse(browserConnection.dto).grantedScopes.includes(new URL(parsed.bundle.pageUrl).origin))throw new RepositoryError('CONNECTION_REQUIRED','Grant this site in the extension before capturing its content.');
-      const item=await this.lockedCase(client,ownerId,parsed.caseId);
+      const created=parsed.caseId===undefined;
+      const item=parsed.caseId?await this.lockedCase(client,ownerId,parsed.caseId):CaseSummarySchema.parse({id:randomUUID(),recordVersion:1,title:`${parsed.bundle.title||'Page check'} · ${parsed.bundle.pageUrl}`.slice(0,1000),sourceKinds:['browser'],sourceRevision:1,currentAssessment:null,activeRunId:null,latestRunStatus:null,freshness:'current',reviewStatus:'unreviewed',updatedAt:now()});
+      if(created)await client.query('INSERT INTO cases(id,owner_id,source_revision,record_version,dto) VALUES($1,$2,$3,$4,$5)',[item.id,ownerId,item.sourceRevision,item.recordVersion,item]);
       const email=await client.query("SELECT se.dto FROM source_events se JOIN case_sources cs ON cs.source_event_id=se.id AND cs.owner_id=se.owner_id WHERE cs.owner_id=$1 AND cs.case_id=$2 AND se.kind='gmail' LIMIT 1",[ownerId,item.id]);
-      if(!email.rows[0])throw new RepositoryError('VALIDATION_ERROR','Choose an existing email case for this capture.');
+      if(!created&&!email.rows[0]){
+        const pages=await client.query("SELECT se.original_url FROM source_events se JOIN case_sources cs ON cs.source_event_id=se.id AND cs.owner_id=se.owner_id WHERE cs.owner_id=$1 AND cs.case_id=$2 AND se.kind='browser'",[ownerId,item.id]);
+        if(!pages.rows.length||pages.rows.some(page=>page.original_url!==parsed.bundle.pageUrl))throw new RepositoryError('VALIDATION_ERROR','This browser case belongs to a different page. Start a standalone check for this page.');
+      }
       const captureId=randomUUID(),sourceId=randomUUID(),receivedAt=now();
       const capture=StoredPageCaptureSchema.parse({id:captureId,caseId:item.id,sourceEventId:sourceId,installationId:parsed.installationId,bundle:parsed.bundle,bundleHash:hash(JSON.stringify(parsed.bundle)),receivedAt,dataOrigin});
-      const source=SourceEventSchema.parse({id:sourceId,connectionId:browserConnection.id,kind:'browser',externalId:parsed.clientCaptureId,externalThreadId:null,receivedAt,occurredAt:parsed.bundle.capturedAt,title:parsed.bundle.title||'Captured rental page',senderLabel:null,previewText:parsed.bundle.visibleText,contentRef:`capture:${captureId}`,disposition:'action_required',processingStatus:'complete',lastErrorCode:null,dataOrigin});
+      const source=SourceEventSchema.parse({id:sourceId,connectionId:browserConnection.id,kind:'browser',externalId:parsed.clientCaptureId,externalThreadId:null,receivedAt,occurredAt:parsed.bundle.capturedAt,title:parsed.bundle.title||'Captured page',senderLabel:null,previewText:parsed.bundle.visibleText,contentRef:`capture:${captureId}`,disposition:'action_required',processingStatus:'complete',lastErrorCode:null,dataOrigin});
       await client.query('INSERT INTO source_events(id,owner_id,connection_id,external_id,external_thread_id,kind,disposition,processing_status,dto,content,links,original_url) VALUES($1,$2,$3,$4,NULL,$5,$6,$7,$8,$9,$10,$11)',[source.id,ownerId,source.connectionId,source.externalId,'browser',source.disposition,source.processingStatus,source,`Captured visible page content (untrusted, not email):\n${parsed.bundle.visibleText}`,JSON.stringify([parsed.bundle.pageUrl]),parsed.bundle.pageUrl]);
       await client.query('INSERT INTO page_captures(id,owner_id,case_id,source_event_id,installation_id,client_capture_id,bundle_hash,dto) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[captureId,ownerId,item.id,source.id,parsed.installationId,parsed.clientCaptureId,capture.bundleHash,capture]);
       await client.query('INSERT INTO case_sources(owner_id,case_id,source_event_id) VALUES($1,$2,$3)',[ownerId,item.id,source.id]);
       await this.cancelActive(client,ownerId,item);
-      item.sourceRevision++;item.recordVersion++;item.updatedAt=receivedAt;if(!item.sourceKinds.includes('browser'))item.sourceKinds.push('browser');
-      const run=await this.newRun(client,ownerId,item,'new_evidence',config,SourceEventSchema.parse(email.rows[0].dto).dataOrigin==='user'?'user':dataOrigin,captureId);
+      if(!created){item.sourceRevision++;item.recordVersion++;}item.updatedAt=receivedAt;if(!item.sourceKinds.includes('browser'))item.sourceKinds.push('browser');
+      const run=await this.newRun(client,ownerId,item,created?'new_source':'new_evidence',config,email.rows[0]&&SourceEventSchema.parse(email.rows[0].dto).dataOrigin==='user'?'user':dataOrigin,captureId);
       await this.saveCase(client,ownerId,item);
       for(const type of ['source.received','source.updated'] as const)await this.emit(client,ownerId,{type,caseId:item.id,sourceRevision:item.sourceRevision,data:{sourceEventId:source.id,kind:'browser',disposition:source.disposition,processingStatus:source.processingStatus,lastErrorCode:null,caseIds:[item.id]}});
-      await this.emit(client,ownerId,{type:'case.updated',caseId:item.id,sourceRevision:item.sourceRevision,data:{case:item}});
+      await this.emit(client,ownerId,{type:created?'case.created':'case.updated',caseId:item.id,sourceRevision:item.sourceRevision,data:{case:item}});
       await this.emit(client,ownerId,{type:'investigation.queued',caseId:item.id,sourceRevision:item.sourceRevision,data:{runId:run.id,status:'queued'}});
       const accepted:AcceptedPageCapture={captureId,sourceEventId:source.id,caseId:item.id,runId:run.id,reused:false,label:CAPTURE_LABEL};
       await client.query('INSERT INTO idempotency_records(owner_id,route,key,request_hash,result) VALUES($1,$2,$3,$4,$5)',[ownerId,route,key,requestHash,accepted]);
@@ -420,6 +425,11 @@ export class PostgresRepository {
       const { run, item } = await this.requireLease(client, ownerId, runId, generation);
       const evidence = await client.query('SELECT dto FROM evidence WHERE owner_id=$1 AND case_id=$2 AND (run_id=$3 OR run_id IS NULL)', [ownerId, item.id, runId]);
       const sources = await client.query('SELECT source_event_id FROM case_sources WHERE owner_id=$1 AND case_id=$2', [ownerId, item.id]);
+      if(run.pageCaptureId&&input.verdict){
+        const cited=evidence.rows.map(row=>EvidenceSchema.parse(row.dto)).filter(e=>input.finding?.evidenceIds.includes(e.id));
+        if(!cited.some(e=>e.kind==='page_excerpt'&&e.excerpt?.trim()&&e.runId===runId&&e.inspection?.captureId===run.pageCaptureId))throw new RepositoryError('VALIDATION_ERROR','A captured-page finding must cite the saved page-text observation from this run.');
+        if(item.sourceKinds.includes('gmail')&&!cited.some(e=>e.kind==='message_excerpt'))throw new RepositoryError('VALIDATION_ERROR','A linked comparison must also cite the email observation.');
+      }
       const proposal = assertAssessmentProposal({ proposal: input, run, evidence: evidence.rows.map((row) => EvidenceSchema.parse(row.dto)), sourceEventIds: sources.rows.map((row) => row.source_event_id as string), mode, finalStatus });
       const status = proposal.verdict === null ? 'limited' : finalStatus;
       assertRunTransition(run.status, status); run.status = status; run.finishedAt = now(); run.limitations = proposal.limitations;

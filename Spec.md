@@ -95,6 +95,8 @@ Remove promotional and redundant copy, including “The important part at a glan
 | Connections | Actual connection status, last successful sync, errors, connect/reconnect/disconnect controls, and extension status. |
 | Browser panel | Current supported page's investigation state, concise judgment if available, one finding, and a route to case details. |
 
+Captured page checks default to a standalone browser case and work without any email cases or connection. **Link to an email · Optional** is a collapsed secondary control; an explicit selection retains email comparison. A standalone finding describes captured recurring charges, cancellation terms, or sensitive-information requests using exact saved evidence. It must not invent an email discrepancy or treat a disclosed subscription alone as fraud. An explicit browser-case recheck preserves that case and its history; different pages are not merged merely by hostname. Offline inspection limits remain visible, and closing/reopening the extension reloads the actual persisted run state.
+
 Every surface includes appropriate empty, loading, disconnected, limited, error, and retry states. Connection labels must distinguish Not connected, Connecting, Connected, and Reconnect required according to actual backend state.
 
 The dashboard first renders the saved snapshot, then applies live events. Updates must not close an open drawer, reset filters, lose keyboard focus, or unexpectedly move the item being reviewed. New results can show a restrained “Updated” indicator. Respect reduced-motion preferences.

@@ -1,6 +1,8 @@
 import { browser } from 'wxt/browser';
-import { BrowserEventInputSchema, BrowserInstallationSchema, CaseDetailSchema, MessageDetailSchema,PageBundleSchema,PageCaptureInputSchema,AcceptedPageCaptureSchema,PageSchema,CaseSummarySchema,IdSchema,ApiErrorSchema } from '@beforeyou/contracts';
-import { access, authClient, signIn,signInWithPassword } from '../src/auth';
+import { BrowserEventInputSchema, BrowserInstallationSchema, CaseDetailSchema, MessageDetailSchema,PageBundleSchema,PageCaptureInputSchema,AcceptedPageCaptureSchema,PageSchema,CaseSummarySchema,IdSchema,ApiErrorSchema,RunDetailSchema,AcceptedRunSchema } from '@beforeyou/contracts';
+import { access, authClient, clearStoredSession, signIn,signInWithPassword } from '../src/auth';
+import { captureStatus,resolveCapturedState } from '../src/capture-status';
+import {capturedPageUrl,captureReceipt,captureReceiptKey,restoreCaptureReceipt} from '../src/capture-receipt';
 import { config, type PageState } from '../src/config';
 export default defineBackground(() => {
   async function api(path: string, method = 'GET', body?: unknown): Promise<unknown> {
@@ -18,11 +20,27 @@ export default defineBackground(() => {
     await browser.storage.session.set({ signedInOwner: owner });
     return registration;
   }
-  async function setState(tabId: number, state: PageState) { await browser.storage.session.set({ [`page:${tabId}`]: state }); }
+  async function setState(tabId: number, state: PageState) {
+    const {owner}=await access();const owned={...state,ownerId:owner};
+    await browser.storage.session.set({ [`page:${tabId}`]: owned });
+    const receipt=captureReceipt(owned);
+    if(receipt)await browser.storage.local.set({[captureReceiptKey(owner,receipt.pageUrl)]:receipt});
+  }
+  async function savedState(tabId:number):Promise<PageState|undefined>{
+    const {owner}=await access();
+    const cached=(await browser.storage.session.get(`page:${tabId}`))[`page:${tabId}`] as PageState|undefined;
+    if(cached?.ownerId===owner)return cached;
+    const tab=await browser.tabs.get(tabId);if(!tab.url||!/^https?:/.test(tab.url))return;
+    const key=captureReceiptKey(owner,tab.url);
+    return restoreCaptureReceipt((await browser.storage.local.get(key))[key],owner,tab.url);
+  }
   async function refresh(tabId: number) {
-    const key = `page:${tabId}`;
-    const state = (await browser.storage.session.get(key))[key] as PageState | undefined;
+    const state=await savedState(tabId);
     if (!state?.sourceEventId) return state ?? { phase: 'waiting', message: 'Open an allowed page containing a consequential request.' };
+    if(state.captureId&&state.runId&&state.caseId){
+      const [detail,run]=await Promise.all([api(`/cases/${state.caseId}`).then(CaseDetailSchema.parse),api(`/runs/${state.runId}`).then(RunDetailSchema.parse)]);
+      const next=resolveCapturedState(state,detail,run.run);await setState(tabId,next);return next;
+    }
     const source = MessageDetailSchema.parse(await api(`/messages/${state.sourceEventId}`));
     if (source.source.disposition === 'no_action') { const next: PageState = { ...state, phase: 'no_action', message: 'No consequential request was identified on this page.' }; await setState(tabId, next); return next; }
     if (source.source.processingStatus === 'failed') { const next: PageState = { ...state, phase: 'failed', message: 'The request could not be classified. Retry the check.' }; await setState(tabId, next); return next; }
@@ -31,9 +49,10 @@ export default defineBackground(() => {
     const detail = CaseDetailSchema.parse(await api(`/cases/${caseId}`));
     const assessment = detail.currentAssessment;
     const run = detail.case.latestRunStatus;
-    const current=assessment&&detail.case.freshness==='current'&&(!state.runId||assessment.runId===state.runId);
-    const inspected=Boolean(current&&detail.evidence.some(e=>e.runId===assessment.runId&&e.inspection?.captureId===state.captureId));
-    const next: PageState = { ...state, caseId, phase: run === 'failed' ? 'failed' : run==='queued'||run==='checking'?'checking':run === 'limited' ? 'limited' : current ? 'ready' : 'checking', message: run === 'failed' ? 'The investigation could not complete. No local fallback was used.' : inspected?'Captured page inspected in Daytona':state.captureId?'Captured content is queued for offline inspection.':current?'Based on the observed steps':'Checking the accessible next steps…', verdict: current?assessment.verdict:undefined, finding:current?assessment.finding.headline:undefined,inspectedInDaytona:inspected };
+    const current=Boolean(assessment&&detail.case.freshness==='current'&&(!state.runId||assessment.runId===state.runId));
+    const inspected=Boolean(assessment&&current&&detail.evidence.some(e=>e.runId===assessment.runId&&e.inspection?.captureId===state.captureId));
+    const status=captureStatus({run,current,inspected,hasCapture:Boolean(state.captureId)});
+    const next: PageState = { ...state, caseId, phase: status.phase, message: status.message, verdict: current&&assessment?assessment.verdict:undefined, finding:current&&assessment?assessment.finding.headline:undefined,inspectedInDaytona:inspected };
     await setState(tabId, next); return next;
   }
   browser.runtime.onMessage.addListener((message, sender) => {
@@ -60,7 +79,7 @@ export default defineBackground(() => {
       if(message.type==='email_cases'){const page=PageSchema(CaseSummarySchema).parse(await api('/cases?limit=100'));return {ok:true,cases:page.items.filter(c=>c.sourceKinds.includes('gmail')).map(c=>({id:c.id,title:c.title}))};}
       if(message.type==='grant_site'){const origin=String(message.origin);if(origin!==config.captureOrigin)throw new Error('Only the controlled rental origin is available for captured-page inspection.');const registered=await installation();await api('/browser/site-grants','POST',{installationId:registered.installationId,origin,granted:Boolean(message.granted)});return {ok:true};}
       if(message.type==='check_page'){
-        const caseId=IdSchema.parse(message.caseId),tabId=Number(message.tabId);
+        const caseId=message.caseId===undefined?undefined:IdSchema.parse(message.caseId),tabId=Number(message.tabId);
         const tab=await browser.tabs.get(tabId);if(!tab.url)throw new Error('Open the controlled rental page first.');
         const pageUrl=new URL(tab.url),origin=pageUrl.origin;
         const explicit=(await browser.storage.local.get('allowedSiteOrigins')).allowedSiteOrigins;
@@ -72,14 +91,14 @@ export default defineBackground(() => {
         if(bundle.pageUrl!==`${origin}${pageUrl.pathname}`)throw new Error('The captured content no longer matches this tab. Refresh the page and try again.');
         const payload=PageCaptureInputSchema.parse({clientCaptureId:crypto.randomUUID(),installationId:registered.installationId,caseId,bundle});
         const accepted=AcceptedPageCaptureSchema.parse(await api('/browser/captures','POST',payload));
-        await setState(tabId,{phase:'checking',message:'Captured page queued for offline Daytona inspection.',sourceEventId:accepted.sourceEventId,caseId,captureId:accepted.captureId,runId:accepted.runId});
+        const previous=await savedState(tabId);
+        await setState(tabId,{phase:'checking',message:'Captured page queued for offline Daytona inspection.',sourceEventId:accepted.sourceEventId,caseId:accepted.caseId,captureId:accepted.captureId,runId:accepted.runId,pageUrl:capturedPageUrl(tab.url),caseTitle:bundle.title,association:!caseId?'standalone':previous?.caseId===caseId?previous.association:'linked_email'});
         return {ok:true,...accepted};
       }
-      if (message.type === 'sign_out') { if (config.mode !== 'demo') await authClient().auth.signOut(); await browser.storage.session.clear(); return { ok: true }; }
+      if (message.type === 'sign_out') { if (config.mode !== 'demo') { await authClient().auth.signOut().catch(() => undefined); await clearStoredSession(); } await browser.storage.session.clear(); return { ok: true }; }
       if (message.type === 'retry_check') {
-        const key = `page:${message.tabId}`;
-        const state = (await browser.storage.session.get(key))[key] as PageState | undefined;
-        if (state?.caseId) await api(`/cases/${state.caseId}/rechecks`, 'POST', { reason: 'user_recheck' });
+        const state=await savedState(Number(message.tabId));
+        if (state?.caseId) {const accepted=AcceptedRunSchema.parse(await api(`/cases/${state.caseId}/rechecks`, 'POST', { reason: 'user_recheck' }));await setState(Number(message.tabId),{...state,runId:accepted.runId,phase:'checking',message:'The saved capture is queued for reinspection.',verdict:undefined,finding:undefined});}
         else await browser.tabs.sendMessage(message.tabId, { type: 'beforeyou:rescan' });
         return { ok: true };
       }

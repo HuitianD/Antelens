@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { readFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { Evidence, JourneyStep } from '@beforeyou/contracts';
-const fixture = vi.hoisted(() => ({ mode: 'valid', disabled: [] as string[], createOptions: undefined as Record<string, unknown> | undefined, closed: 0, browserClosed: 0, calls: [] as string[], submitted: [] as unknown[] }));
+import type { Evidence, JourneyStep,CapturedInspection,StoredPageCapture } from '@beforeyou/contracts';
+const fixture = vi.hoisted(() => ({ mode: 'valid', disabled: [] as string[], createOptions: undefined as Record<string, unknown> | undefined, closed: 0, browserClosed: 0, calls: [] as string[], submitted: [] as unknown[],prompts:[] as string[] }));
 interface FakeTool { name: string; handler: (input: Record<string, unknown>) => Promise<string> }
 vi.mock('@factory/droid-sdk/node', () => ({
   AutonomyLevel: { Off: 'off' }, ToolConfirmationOutcome: { Cancel: 'cancel', ProceedOnce: 'once' }, ToolConfirmationType: { McpTool: 'mcp_tool' }, OutputFormatType: { JsonSchema: 'json_schema' },
@@ -18,7 +18,8 @@ vi.mock('@factory/droid-sdk/node', () => ({
       listTools: async () => ids.map(id => ({ id, allowed: fixture.mode === 'unrestricted' && id === 'Execute' ? true : !fixture.disabled.includes(id) })),
       updateSettings: async ({ disabledToolIds }: { disabledToolIds: string[] }) => { fixture.disabled = disabledToolIds; },
       close: async () => { fixture.closed++; },
-      stream: async function* () {
+      stream: async function* (prompt:string) {
+        fixture.prompts.push(prompt);
         fixture.calls.push('stream');
         if (fixture.mode === 'timeout') { const error = new Error('Expired'); error.name = 'TimeoutError'; throw error; }
         if (!tools.length) { yield { type: 'result', success: true, structuredOutput: { outcome: 'no_action', requestSummary: null, impacts: [], candidateCaseId: null, relevantLinkIndexes: [] } }; return; }
@@ -34,7 +35,13 @@ vi.mock('@factory/droid-sdk/node', () => ({
           return;
         }
         const observed = await call('start_browser', { sourceEventId: context.data.sources[0].id, linkIndex: 0 });
-        const evidenceId = observed.data.evidenceIds[0];
+        const evidenceId = observed.data.evidenceIds[fixture.mode==='offline_screenshot'?1:0];
+        if(fixture.mode.startsWith('offline')){
+          const email=context.data.evidence.find((e:Evidence)=>e.kind==='message_excerpt');
+          const ids=[evidenceId,...(email&&fixture.mode!=='offline_missing_email'?[email.id]:[])];
+          fixture.submitted.push(await call('finish_investigation',{proposal:{verdict:fixture.mode==='offline_favorable'?'no_issues_found':'confirm_first',impacts:['money'],finding:{headline:'The captured page lists $29 per month with automatic renewal.',consequence:null,evidenceIds:ids},nextAction:{kind:'review_evidence',label:'Review recurring terms',evidenceId},checkedScope:['Captured page text only'],limitations:[],changeSummary:null}}));
+          yield {type:'result',success:true};return;
+        }
         const verdict = fixture.mode === 'invented' || fixture.mode === 'concern' ? 'confirm_first' : 'no_issues_found';
         const proposal = { verdict, impacts: ['money'], finding: { headline: 'The visible fee matches the request.', consequence: null, evidenceIds: [fixture.mode === 'invented' ? 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' : evidenceId] }, nextAction: { kind: 'review_evidence', label: 'Review terms', evidenceId }, checkedScope: ['Visible payment terms'], limitations: [], changeSummary: null };
         fixture.submitted.push(await call('finish_investigation', { proposal }));
@@ -51,18 +58,47 @@ vi.mock('../src/local-browser.js', () => ({ LocalControlledBrowser: class {
   async observe(url: string) { fixture.calls.push('local_observe'); return { title: 'Controlled synthetic page', visibleText: 'Application fee $40. No recurring charges.', url, status: 200, anchors: [], fieldLabels: [], scriptedPage: false, loginRequired: false, captcha: false, blockedRequests: false, screenshot: '' }; }
   async close() { fixture.browserClosed++; }
 } }));
+vi.mock('../src/daytona-captured.js',()=>({DaytonaCapturedBrowser:class{
+ constructor(_config:unknown,_runId:string,private capture:StoredPageCapture){}
+ async observe(url:string){return {title:'Controlled rental',visibleText:'Membership $29 per month, renews until cancelled.',url,status:0,anchors:[],fieldLabels:[],scriptedPage:false,loginRequired:false,captcha:false,blockedRequests:false,screenshot:'',inspection:{method:'captured_page_daytona',label:'Captured page inspected in Daytona',captureId:this.capture.id,bundleHash:this.capture.bundleHash,sandboxId:'mock-runtime-test',capturedAt:this.capture.bundle.capturedAt,inspectedAt:this.capture.bundle.capturedAt,networkRequests:0}};}
+ async close(){fixture.browserClosed++;}
+}}));
 import { byokModel, createLiveAgent, isInvestigationTool } from '../src/runtime.js';
 const config = { factoryApiKey: 'synthetic-factory-key', anthropicApiKey: 'synthetic-anthropic-key', claudeModelId: 'claude-test-model', daytonaApiKey: 'synthetic-daytona-key', daytonaSnapshot: 'fixture', allowedDomains: ['example.com'], maxSteps: 24 };
 function investigation() {
   const ownerId = randomUUID(), caseId = randomUUID(), runId = randomUUID(), sourceId = randomUUID();
   const evidence: Evidence[] = []; const steps: JourneyStep[] = [];
   return { evidence, steps, input: { ownerId, caseId, runId, sourceRevision: 1, dataOrigin: 'synthetic' as const, sources: [{ id: sourceId, title: 'Synthetic application', content: 'Application fee $40.', links: ['https://example.com/terms'] }], existingEvidence: [],
-    saveEvidence: async (capture: { kind: Evidence['kind']; sourceEventId: string | null; stepId: string; sourceLabel: string; displayUrl: string | null; excerpt: string | null; contentHash: string }) => { const saved: Evidence = { kind: capture.kind, sourceEventId: capture.sourceEventId, stepId: capture.stepId, sourceLabel: capture.sourceLabel, displayUrl: capture.displayUrl, excerpt: capture.excerpt, contentHash: capture.contentHash, id: randomUUID(), caseId, runId, observedAt: new Date().toISOString(), artifactId: null, provenance: { dataOrigin: 'synthetic', execution: 'live' } }; evidence.push(saved); return saved; },
+    saveEvidence: async (capture: { kind: Evidence['kind']; sourceEventId: string | null; stepId: string; sourceLabel: string; displayUrl: string | null; excerpt: string | null; contentHash: string;inspection?:CapturedInspection }) => { const saved: Evidence = { kind: capture.kind, sourceEventId: capture.sourceEventId, stepId: capture.stepId, sourceLabel: capture.sourceLabel, displayUrl: capture.displayUrl, excerpt: capture.excerpt, contentHash: capture.contentHash, id: randomUUID(), caseId, runId, observedAt: new Date().toISOString(), artifactId: null, provenance: { dataOrigin: 'synthetic', execution: 'live' },...(capture.inspection?{inspection:capture.inspection}:{}) }; evidence.push(saved); return saved; },
     onStep: async (step: JourneyStep) => { steps.push(step); },
   } };
 }
-beforeEach(() => { fixture.mode = 'valid'; fixture.disabled = []; fixture.closed = 0; fixture.browserClosed = 0; fixture.calls = []; fixture.submitted = []; fixture.createOptions = undefined; });
+beforeEach(() => { fixture.mode = 'valid'; fixture.disabled = []; fixture.closed = 0; fixture.browserClosed = 0; fixture.calls = []; fixture.submitted = []; fixture.prompts=[];fixture.createOptions = undefined; });
 describe('adapter execution with explicitly mocked providers', () => {
+  function offlineCase(linked=false){
+    const test=investigation();const source={...test.input.sources[0]!,kind:'browser' as const};
+    const capturedPage:StoredPageCapture={id:randomUUID(),caseId:test.input.caseId,sourceEventId:source.id,installationId:randomUUID(),bundle:{schemaVersion:'1',pageUrl:source.links[0]!,title:'Controlled rental',capturedAt:new Date().toISOString(),visibleText:'Membership $29 per month.',blocks:[{kind:'paragraph',text:'Membership $29 per month.'}],fieldLabels:[],viewport:{width:1280,height:900}},bundleHash:'a'.repeat(64),receivedAt:new Date().toISOString(),dataOrigin:'synthetic'};
+    const email={...source,id:randomUUID(),kind:'gmail' as const,content:'Application fee $40.'};
+    const message:Evidence={id:randomUUID(),caseId:test.input.caseId,runId:test.input.runId,sourceEventId:email.id,stepId:null,kind:'message_excerpt',observedAt:capturedPage.receivedAt,sourceLabel:'Controlled email',displayUrl:null,excerpt:email.content,artifactId:null,contentHash:'b'.repeat(64),provenance:{dataOrigin:'synthetic',execution:'live'}};
+    return {test,input:{...test.input,sources:linked?[source,email]:[source],existingEvidence:linked?[message]:[],capturedPage}};
+  }
+  it('standalone captures need no fabricated email and use the page-only prompt',async()=>{
+    fixture.mode='offline_standalone';const {test,input}=offlineCase();const result=await createLiveAgent(config).investigate(input);
+    expect(result.proposal.verdict).toBe('confirm_first');
+    expect(test.evidence.some(e=>e.kind==='message_excerpt')).toBe(false);
+    expect(fixture.prompts[0]).toContain('No email is linked');
+    expect(fixture.prompts[0]).toContain('A disclosed subscription is not evidence of fraud');
+    expect(result.limitations.some(l=>l.message.includes('Offline inspection'))).toBe(true);
+  });
+  it('linked captures still require both real page-text and email evidence IDs',async()=>{
+    fixture.mode='offline_linked';const {input}=offlineCase(true);const result=await createLiveAgent(config).investigate(input);
+    expect(result.proposal.finding?.evidenceIds).toHaveLength(2);expect(fixture.prompts[0]).toContain('Compare what the email mentions');
+    fixture.mode='offline_missing_email';await expect(createLiveAgent(config).investigate(offlineCase(true).input)).rejects.toThrow('valid evidence-backed');
+  });
+  it('rejects screenshot-only page-text citations and favorable offline judgments',async()=>{
+    fixture.mode='offline_screenshot';await expect(createLiveAgent(config).investigate(offlineCase().input)).rejects.toThrow('valid evidence-backed');
+    fixture.mode='offline_favorable';await expect(createLiveAgent(config).investigate(offlineCase().input)).rejects.toThrow('valid evidence-backed');
+  });
   it('publishes only persisted observations and emits unique ordered journey steps', async () => {
     const test = investigation();
     const result = await createLiveAgent(config).investigate(test.input);

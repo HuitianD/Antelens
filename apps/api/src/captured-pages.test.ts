@@ -10,6 +10,9 @@ test('offline capture ingress rejects unapproved pages, executable data and clie
  for(const url of ['https://unapproved.example/fixtures/SC-01','http://127.0.0.1:4080/fixtures/SC-02','http://127.0.0.1:4080/fixtures/SC-01?token=secret','http://user:secret@127.0.0.1:4080/fixtures/SC-01'])assert.throws(()=>assertCaptureScope(url,env));
  const input={clientCaptureId:randomUUID(),installationId:randomUUID(),caseId:randomUUID(),bundle:{schemaVersion:'1',pageUrl:'http://127.0.0.1:4080/fixtures/SC-01',title:'Controlled rental',capturedAt:new Date().toISOString(),visibleText:'Application fee $40. Membership $29/month.',blocks:[{kind:'paragraph',text:'Application fee $40. Membership $29/month.'}],fieldLabels:['Email'],viewport:{width:1280,height:900}}};
  assert.equal(PageCaptureInputSchema.safeParse(input).success,true);
+ const {caseId:_caseId,...standalone}=input;
+ assert.equal(PageCaptureInputSchema.safeParse(standalone).success,true);
+ assert.equal(PageCaptureInputSchema.safeParse({...standalone,caseId:null}).success,false);
  for(const extra of [{html:'<script>run()</script>'},{cookies:'session=secret'},{formValues:{email:'private@example.com'}},{ownerId:randomUUID()},{provenance:{execution:'live'}}])assert.equal(PageCaptureInputSchema.safeParse({...input,bundle:{...input.bundle,...extra}}).success,false);
  assert.equal(PageCaptureInputSchema.safeParse({...input,ownerId:randomUUID()}).success,false);
  assert.equal(PageCaptureInputSchema.safeParse({...input,bundle:{...input.bundle,pageUrl:input.bundle.pageUrl+'?code=private'}}).success,false);

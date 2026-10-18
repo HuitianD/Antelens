@@ -8,13 +8,13 @@ This is real offline inspection of a controlled, synthetic page capture against 
 
 1. Open `chrome://extensions`, enable **Developer mode**, and click **Load unpacked**. Choose `/Users/dsteven/Desktop/BeforeYou/apps/extension/.output/chrome-mv3`. If already installed, click **Reload** after a new build.
 2. Confirm extension ID `oonbnpicjomfiddbiaegfdpdjiofdccn`. The public manifest key keeps this local ID stable; it is not a secret or a signing credential.
-3. Open the controlled page above and open Before You from Chrome's toolbar. Sign in with the same Before You account as the dashboard. Enter credentials only in the local extension form, never chat. The configured flow uses Supabase email/password; it needs no new OAuth callback or provider authorization.
+3. Open the controlled page above and open Before You from Chrome's toolbar. Sign in with your Before You account. Enter credentials only in the local extension form, never chat. The configured flow uses Supabase email/password; it needs no new OAuth callback or provider authorization. Email linking is now optional; see [standalone checks](standalone-page-checks.md).
 4. Click **Allow this site** and accept Chrome's permission if it shows a prompt. This records both a Chrome grant and an owner-scoped server grant for `http://127.0.0.1:4080`. Transport permission for API port 4000 does not itself authorize collection.
-5. Choose the existing Maple Court rental email case, ID beginning `f6d3e6`, then **Check this page**. This association is explicit; a second rental case is not created.
+5. Click **Check this page** for a standalone browser case. To exercise email comparison instead, expand **Link to an email · Optional**, choose the existing Maple Court rental email case, ID beginning `f6d3e6`, then check. That explicit association retains the existing Gmail case.
 6. Open **View case details**. Review **Message says** ($40 one-time application fee), **Page shows** (required $29/month membership), the exact offline-inspection label, the screenshot and its zoom. Open History to inspect earlier immutable versions.
 7. Change the page URL to `http://127.0.0.1:4080/fixtures/SC-01?monthlyFee=39`, reopen the extension, choose the same case and check again. The new page quote, screenshot and assessment must show $39; the $29 version stays in history. Return the URL to `monthlyFee=29` for the starting demonstration.
 
-The current owner-profile Chrome sign-in/grant/capture sequence remains unverified until performed. A separate backend checkpoint has already exercised real providers and persistence; it does not stand in for these browser actions.
+The owner-profile linked Chrome capture reached version 6. Its persisted text-display issue is diagnosed in [standalone checks](standalone-page-checks.md); matching saved text is now rendered without changing historical assessments. Isolated automated browser checks remain distinct from actions in the owner's Chrome profile.
 
 ## Prepared configuration
 

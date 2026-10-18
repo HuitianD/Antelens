@@ -10,4 +10,4 @@ export const config = {
   capturePath:import.meta.env.VITE_CAPTURE_PATH||'/fixtures/SC-01',
   supportedOrigins: (String(import.meta.env.VITE_SUPPORTED_ORIGINS || 'http://127.0.0.1:4000,http://localhost:4000')).split(',').map((value: string) => value.trim()).filter(Boolean),
 };
-export interface PageState { phase: 'waiting' | 'checking' | 'ready' | 'limited' | 'failed' | 'no_action'; message: string; sourceEventId?: string; caseId?: string; verdict?: string; finding?: string;captureId?:string;runId?:string;inspectedInDaytona?:boolean }
+export interface PageState { phase: 'waiting' | 'checking' | 'ready' | 'limited' | 'failed' | 'no_action'; message: string; sourceEventId?: string; caseId?: string; verdict?: string; finding?: string;captureId?:string;runId?:string;inspectedInDaytona?:boolean;ownerId?:string;pageUrl?:string;caseTitle?:string;association?:'standalone'|'linked_email' }

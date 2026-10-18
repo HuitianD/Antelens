@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const CAPTURE_LABEL = 'Captured page inspected in Daytona' as const;
-export const CAPTURE_PROMPT_VERSION = 'captured-page-1.0.0' as const;
+export const CAPTURE_PROMPT_VERSION = 'captured-page-1.1.0' as const;
 export const CAPTURE_TOOL_VERSION = 'offline-bundle-1.0.0' as const;
 export const CAPTURE_LIMITATION = 'Offline inspection of captured visible content only. Live website state, unseen pages, actions, and sender identity were not verified.';
 const id = z.uuid();
@@ -13,7 +13,8 @@ export const PageBundleSchema = z.strictObject({
  blocks:z.array(CaptureBlockSchema).min(1).max(160),fieldLabels:z.array(z.string().min(1).max(200)).max(100),
  viewport:z.strictObject({width:z.number().int().min(1).max(10000),height:z.number().int().min(1).max(10000)}),
 }).superRefine((bundle,ctx)=>{if(bundle.blocks.reduce((sum,b)=>sum+b.text.length,0)>12000)ctx.addIssue({code:'custom',message:'Captured structure exceeds the text limit.'});});
-export const PageCaptureInputSchema=z.strictObject({clientCaptureId:id,installationId:id,caseId:id,bundle:PageBundleSchema});
+// Omit caseId to create a standalone browser case. An explicit ID links an email or rechecks the exact browser page.
+export const PageCaptureInputSchema=z.strictObject({clientCaptureId:id,installationId:id,caseId:id.optional(),bundle:PageBundleSchema});
 export const StoredPageCaptureSchema=z.strictObject({id,caseId:id,sourceEventId:id,installationId:id,bundle:PageBundleSchema,bundleHash:digest,receivedAt:z.iso.datetime(),dataOrigin:z.enum(['synthetic','user'])});
 export const AcceptedPageCaptureSchema=z.strictObject({captureId:id,sourceEventId:id,caseId:id,runId:id,reused:z.boolean(),label:z.literal(CAPTURE_LABEL)});
 export const BrowserSiteGrantInputSchema=z.strictObject({installationId:id,origin:z.url().refine(value=>new URL(value).origin===value),granted:z.boolean()});

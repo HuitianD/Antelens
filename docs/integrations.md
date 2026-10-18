@@ -117,7 +117,7 @@ Your action:
 2. Copy the displayed extension ID (it is public). The agent adds `chrome-extension://<extension-id>` to `ALLOWED_EXTENSION_ORIGINS` and the exact callback `https://<extension-id>.chromiumapp.org/auth` to Supabase URL configuration. The panel derives this callback through Chrome's identity API.
 3. Open the extension panel, select Sign in, and complete consent. Open the configured controlled site and select Allow this site. Only explicitly granted supported origins receive a content script. Remove site access revokes subsequent observation; the extension never promises a universal transaction blocker.
 
-Credential destination: The extension receives public settings and a Supabase session in `chrome.storage.session`; never Gmail refresh tokens or provider keys. PKCE verification stays in the extension's session storage and is not copied from website cookies.
+Credential destination: The extension stores the Supabase session in `chrome.storage.local` under `beforeyou.auth.` so it survives popup closure and service-worker restart. Sign-out removes those keys. The password is never stored. Page-check progress stays in `chrome.storage.session`. Never store Gmail refresh tokens or provider keys. PKCE verification stays in the extension and is not copied from website cookies.
 
 Verification: The agent checks no content capture before granting, automatic observation after granting, event deduplication, pending-to-case transition, blocked cross-owner registration, and revocation. Installed-browser behavior remains unverified until this profile step occurs.
 
